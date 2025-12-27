@@ -3,6 +3,13 @@ import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
 
+
+const LIMIT_2025 = {
+  IKE: 24792,
+  IKZE: 9811.20,
+  IKZE_PRZEDSIEBIORCA: 14716.80
+};
+
 function App() {
   const [count, setCount] = useState(0)
 
