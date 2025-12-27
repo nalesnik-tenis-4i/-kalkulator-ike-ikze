@@ -12,6 +12,12 @@ export const FeeInput = ({ label, feeData, setFeeData }) => {
     setFeeData({ ...feeData, type: feeData.type === 'pln' ? '%' : 'pln' });
   };
 
+  const handleChange = (e) => {
+    const val = e.target.value;
+    // Jeśli puste, ustawiamy 0 w state, ale input wyświetli pusty string dzięki value={... || ''}
+    setFeeData({ ...feeData, value: val === '' ? 0 : Number(val) });
+  };
+
   return (
     <div style={{ marginTop: '10px' }}>
       <label style={{...labelStyle, fontSize: '11px', color: '#718096'}}>{label}</label>
@@ -19,8 +25,8 @@ export const FeeInput = ({ label, feeData, setFeeData }) => {
         <input 
           type="number" 
           step={feeData.type === '%' ? "0.1" : "1"}
-          value={feeData.value} 
-          onChange={(e) => setFeeData({ ...feeData, value: Number(e.target.value) })}
+          value={feeData.value || ''} 
+          onChange={handleChange}
           style={{ ...inputStyle, border: 'none', flex: 1 }} 
         />
         <button 
