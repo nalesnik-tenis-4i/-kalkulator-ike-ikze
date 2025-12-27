@@ -1,148 +1,225 @@
-import { useState, useEffect } from 'react';
-import { calculateIkzeBonus, taxes, CONSTANTS } from './calculations';
+import { useState, useMemo, useEffect } from 'react';
+// Zmieniamy import na ten z nowego pliku data.js posrednio przez calculations lub bezposrednio
+import { taxes, generateChartData, LIMITS } from './calculations'; 
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import InfoPage from './components/InfoPage';
 
 function App() {
   const [activeTab, setActiveTab] = useState('kalkulator');
   
-  // Parametry wejściowe (zgodnie z arkuszem KALKULATOR)
-  const [rok, setRok] = useState(2025);
+  // Pobieramy dostępne lata z bazy danych i sortujemy malejąco (2026, 2025...)
+  const dostepneLata = useMemo(() => Object.keys(LIMITS).map(Number).sort((a, b) => b - a), []);
+  
+  const [rok, setRok] = useState(dostepneLata[0]); // Domyślnie najnowszy rok
   const [czyFirma, setCzyFirma] = useState(false);
-  const [wiek, setWiek] = useState(35);
+  
+  const [wiek, setWiek] = useState(30);
   const [wiekEmerytura, setWiekEmerytura] = useState(65);
+  
   const [stopaZwrotu, setStopaZwrotu] = useState(6);
-  const [wplata, setWplata] = useState(10000);
+  const [stopaZwrotuUlga, setStopaZwrotuUlga] = useState(4);
+  
+  const [wplataIKE, setWplataIKE] = useState(0);
+  const [wplataIKZE, setWplataIKZE] = useState(0);
+
   const [podatek, setPodatek] = useState(0.12);
   const [reinwestuj, setReinwestuj] = useState(true);
 
-  const limitIKZE = czyFirma ? CONSTANTS[rok].IKZE_FIRMA : CONSTANTS[rok].IKZE;
-  const limitIKE = CONSTANTS[rok].IKE;
+  // --- LOGIKA LIMITÓW ---
+  const limityRoczne = LIMITS[rok] || LIMITS[2025];
+  
+  // Jeśli dla danego roku nie ma osobnego limitu dla firmy (np. rok 2018), używamy zwykłego
+  const limitIKZE = (czyFirma && limityRoczne.IKZE_FIRMA) 
+    ? limityRoczne.IKZE_FIRMA 
+    : limityRoczne.IKZE;
+    
+  const limitIKE = limityRoczne.IKE;
 
-  // Pilnowanie limitów i poprawności podatku
+  // Auto-fill przy pierwszym załadowaniu (opcjonalne)
   useEffect(() => {
-    if (wplata > limitIKZE && wplata > limitIKE) {
-      setWplata(Math.max(limitIKZE, limitIKE));
-    }
+    setWplataIKE(limitIKE);
+    setWplataIKZE(limitIKZE);
+  }, []);
+
+  // Walidacja przy zmianie roku/trybu: przytnij wpłaty jeśli przekraczają nowe limity
+  useEffect(() => {
+    if (wplataIKZE > limitIKZE) setWplataIKZE(limitIKZE);
+    if (wplataIKE > limitIKE) setWplataIKE(limitIKE);
+  }, [rok, czyFirma, limitIKZE, limitIKE]);
+
+  // Synchronizacja podatków (JDG vs Etat)
+  useEffect(() => {
     const dostepnePodatki = czyFirma ? taxes.b2b : taxes.etat;
-    if (!dostepnePodatki.find(t => t.value === podatek)) {
+    // Sprawdź czy wybrany podatek istnieje w nowej grupie, jak nie to reset
+    const czyIstnieje = dostepnePodatki.some(t => t.value === podatek);
+    if (!czyIstnieje) {
       setPodatek(0.12);
     }
-  }, [czyFirma, rok, limitIKZE, limitIKE]);
+  }, [czyFirma]);
 
-  // GŁÓWNA LOGIKA PORÓWNAWCZA (na bazie arkusza "Robocze" i "KALKULATOR")
-  const przeliczWyniki = () => {
-    const lata = wiekEmerytura - wiek;
-    const r = stopaZwrotu / 100;
-    
-    if (lata <= 0) return { ike: 0, ikze: 0, ikzePlus: 0, zwrot: 0 };
+  const chartData = useMemo(() => generateChartData({
+    wiek, wiekEmerytura, 
+    wplataIKE, wplataIKZE, 
+    stopaZwrotu, stopaZwrotuUlga, 
+    podatekStawka: podatek, reinwestuj
+  }), [wiek, wiekEmerytura, wplataIKE, wplataIKZE, stopaZwrotu, stopaZwrotuUlga, podatek, reinwestuj]);
 
-    // 1. IKE (Brak podatku Belki na końcu)
-    const wplataIKE = Math.min(wplata, limitIKE);
-    const ikeFinal = wplataIKE * ((Math.pow(1 + r, lata) - 1) / r) * (1 + r);
+  const final = chartData[chartData.length - 1] || { IKE: 0, IKZE: 0, Zwykle: 0 };
 
-    // 2. IKZE (Podatek 10% przy wypłacie)
-    const wplataIKZE = Math.min(wplata, limitIKZE);
-    const zwrotRoczny = wplataIKZE * podatek;
-    const ikzeBrutto = wplataIKZE * ((Math.pow(1 + r, lata) - 1) / r) * (1 + r);
-    const ikzeFinal = ikzeBrutto * 0.9; // Podatek zryczałtowany 10%
-
-    // 3. IKZE + Reinwestycja zwrotu (Kluczowa strategia FBO)
-    // Zwrot podatku reinwestujemy na "zwykłym" koncie (podatek Belki 19% co roku)
-    let kontoZwrotow = 0;
-    const rNetto = r * (1 - 0.19);
-    for (let i = 0; i < lata; i++) {
-      kontoZwrotow = (kontoZwrotow + zwrotRoczny) * (1 + rNetto);
-    }
-    const ikzePlusFinal = ikzeFinal + (reinwestuj ? kontoZwrotow : 0);
-
-    return {
-      ike: Math.round(ikeFinal),
-      ikze: Math.round(ikzeFinal),
-      ikzePlus: Math.round(ikzePlusFinal),
-      zwrot: Math.round(zwrotRoczny)
-    };
-  };
-
-  const wyniki = przeliczWyniki();
+  // Style (te same co wcześniej)
+  const cardStyle = { backgroundColor: '#f8fafc', padding: '15px', borderRadius: '10px', marginBottom: '15px', border: '1px solid #e2e8f0' };
+  const labelStyle = { display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#4a5568', marginBottom: '5px' };
+  const inputGroupStyle = { display: 'flex', gap: '8px' };
+  const inputStyle = { flex: 1, padding: '8px', borderRadius: '6px', border: '1px solid #cbd5e0', fontSize: '14px' };
+  const btnMaxStyle = { padding: '8px 12px', borderRadius: '6px', border: 'none', background: '#3182ce', color: '#fff', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' };
 
   return (
-    <div style={{ maxWidth: '500px', margin: '20px auto', fontFamily: 'sans-serif', border: '1px solid #e2e8f0', borderRadius: '12px', overflow: 'hidden', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', backgroundColor: '#fff' }}>
-      
-      {/* Taby */}
-      <div style={{ display: 'flex', borderBottom: '2px solid #e2e8f0', backgroundColor: '#f8fafc' }}>
-        <button onClick={() => setActiveTab('kalkulator')} style={{ flex: 1, padding: '15px', border: 'none', background: activeTab === 'kalkulator' ? '#fff' : 'transparent', fontWeight: 'bold', color: activeTab === 'kalkulator' ? '#3182ce' : '#718096', borderBottom: activeTab === 'kalkulator' ? '3px solid #3182ce' : 'none', cursor: 'pointer' }}>Kalkulator</button>
-        <button onClick={() => setActiveTab('info')} style={{ flex: 1, padding: '15px', border: 'none', background: activeTab === 'info' ? '#fff' : 'transparent', fontWeight: 'bold', color: activeTab === 'info' ? '#3182ce' : '#718096', borderBottom: activeTab === 'info' ? '3px solid #3182ce' : 'none', cursor: 'pointer' }}>Informacje</button>
+    <div style={{ maxWidth: '800px', margin: '0 auto', fontFamily: 'system-ui, sans-serif', backgroundColor: '#fff', minHeight: '100vh', boxShadow: '0 0 20px rgba(0,0,0,0.05)' }}>
+      {/* TABS */}
+      <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', position: 'sticky', top: 0, background: '#fff', zIndex: 10 }}>
+        <button onClick={() => setActiveTab('kalkulator')} style={{ flex: 1, padding: '15px', border: 'none', background: activeTab === 'kalkulator' ? '#fff' : '#f7fafc', fontWeight: 'bold', color: activeTab === 'kalkulator' ? '#3182ce' : '#718096', borderBottom: activeTab === 'kalkulator' ? '3px solid #3182ce' : 'none', cursor: 'pointer' }}>Kalkulator</button>
+        <button onClick={() => setActiveTab('info')} style={{ flex: 1, padding: '15px', border: 'none', background: activeTab === 'info' ? '#fff' : '#f7fafc', fontWeight: 'bold', color: activeTab === 'info' ? '#3182ce' : '#718096', borderBottom: activeTab === 'info' ? '3px solid #3182ce' : 'none', cursor: 'pointer' }}>Informacje</button>
       </div>
 
-      <div style={{ padding: '20px' }}>
+      <div style={{ padding: '15px 20px 40px 20px' }}>
         {activeTab === 'kalkulator' ? (
           <div>
-            {/* Sekcja parametrów */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '15px' }}>
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Wiek: {wiek} lat</label>
-                <input type="range" min="18" max="64" value={wiek} onChange={(e) => setWiek(Number(e.target.value))} style={{ width: '100%' }} />
+            
+            {/* WIEK I ROK */}
+            <div style={{ display: 'flex', gap: '15px', marginBottom: '15px', flexWrap: 'wrap' }}>
+              <div style={{ flex: '1 1 120px' }}>
+                <label style={labelStyle}>Twój wiek</label>
+                <input type="number" value={wiek} onChange={(e) => setWiek(Number(e.target.value))} style={{ ...inputStyle, width: '100%' }} />
               </div>
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Emerytura: {wiekEmerytura} lat</label>
-                <input type="range" min={wiek + 1} max="75" value={wiekEmerytura} onChange={(e) => setWiekEmerytura(Number(e.target.value))} style={{ width: '100%' }} />
+              <div style={{ flex: '1 1 120px' }}>
+                <label style={labelStyle}>Wiek emerytury</label>
+                <input type="number" value={wiekEmerytura} onChange={(e) => setWiekEmerytura(Number(e.target.value))} style={{ ...inputStyle, width: '100%' }} />
               </div>
-            </div>
-
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Planowana roczna wpłata:</label>
-              <input 
-                type="number" 
-                value={wplata} 
-                onChange={(e) => setWplata(Number(e.target.value))}
-                style={{ width: '100%', padding: '10px', boxSizing: 'border-box', borderRadius: '6px', border: '1px solid #cbd5e0' }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
-              <select value={czyFirma} onChange={(e) => setCzyFirma(e.target.value === 'true')} style={{ flex: 1, padding: '10px' }}>
-                <option value="false">Etat</option>
-                <option value="true">B2B (Firma)</option>
-              </select>
-              <select value={rok} onChange={(e) => setRok(Number(e.target.value))} style={{ flex: 1, padding: '10px' }}>
-                <option value={2025}>2025</option>
-                <option value={2026}>2026</option>
-              </select>
-            </div>
-
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 'bold' }}>Podatek: </label>
-              <select value={podatek} onChange={(e) => setPodatek(Number(e.target.value))} style={{ width: '100%', padding: '10px' }}>
-                {(czyFirma ? taxes.b2b : taxes.etat).map(t => <option key={t.label} value={t.value}>{t.label}</option>)}
-              </select>
-            </div>
-
-            <div style={{ marginBottom: '20px', padding: '10px', backgroundColor: '#f7fafc', borderRadius: '8px', border: '1px solid #edf2f7' }}>
-              <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '14px' }}>
-                <input 
-                  type="checkbox" 
-                  checked={reinwestuj} 
-                  onChange={(e) => setReinwestuj(e.target.checked)} 
-                  style={{ marginRight: '10px', width: '18px', height: '18px' }}
-                />
-                Reinwestuj coroczny zwrot z IKZE ({wyniki.zwrot} zł)
-              </label>
-            </div>
-
-            {/* Wyniki końcowe */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-              <div style={{ background: '#ebf8ff', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ fontSize: '12px', color: '#2b6cb0' }}>Finał w IKE</div>
-                <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{wyniki.ike.toLocaleString()} zł</div>
-              </div>
-              <div style={{ background: '#f0fff4', padding: '15px', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ fontSize: '12px', color: '#276749' }}>Finał w IKZE*</div>
-                <div style={{ fontSize: '20px', fontWeight: 'bold' }}>{wyniki.ikzePlus.toLocaleString()} zł</div>
+              <div style={{ flex: '1 1 120px' }}>
+                <label style={labelStyle}>Rok limitów</label>
+                {/* DYNAMICZNY SELECT */}
+                <select value={rok} onChange={(e) => setRok(Number(e.target.value))} style={{ ...inputStyle, width: '100%' }}>
+                  {dostepneLata.map(r => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
               </div>
             </div>
-            <p style={{ fontSize: '10px', color: '#a0aec0', marginTop: '10px', textAlign: 'center' }}>
-              *Uwzględnia 10% podatku przy wypłacie {reinwestuj && "oraz reinwestycję ulgi"}.
-            </p>
+
+            {/* PODATKI */}
+            <div style={{ ...cardStyle, background: '#fff', border: '1px solid #cbd5e0' }}>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                 <div style={{ flex: '1 1 150px' }}>
+                   <label style={labelStyle}>Typ działalności</label>
+                   <select value={czyFirma} onChange={(e) => setCzyFirma(e.target.value === 'true')} style={{ ...inputStyle, width: '100%' }}>
+                     <option value="false">Osoba fizyczna (UoP/Zlecenie)</option>
+                     <option value="true">Przedsiębiorca (JDG)</option>
+                   </select>
+                 </div>
+                 <div style={{ flex: '1 1 150px' }}>
+                   <label style={labelStyle}>Twój próg podatkowy</label>
+                   <select value={podatek} onChange={(e) => setPodatek(Number(e.target.value))} style={{ ...inputStyle, width: '100%' }}>
+                     {(czyFirma ? taxes.b2b : taxes.etat).map(t => <option key={t.label} value={t.value}>{t.label}</option>)}
+                   </select>
+                 </div>
+              </div>
+              
+              <div style={{ marginTop: '15px', borderTop: '1px solid #f0f0f0', paddingTop: '10px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontSize: '13px', fontWeight: '500' }}>
+                  <input type="checkbox" checked={reinwestuj} onChange={(e) => setReinwestuj(e.target.checked)} style={{ marginRight: '10px', width: '18px', height: '18px' }} />
+                  Reinwestuj zwrot podatku z IKZE
+                </label>
+              </div>
+            </div>
+
+            {/* WPŁATY */}
+            <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', marginBottom: '20px' }}>
+              
+              {/* KARTA IKE */}
+              <div style={{ ...cardStyle, flex: '1 1 300px', borderColor: '#90cdf4', background: '#ebf8ff', marginBottom: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                   <strong style={{ color: '#2b6cb0' }}>IKE</strong>
+                   <span style={{ fontSize: '11px', color: '#2c5282' }}>Limit: {limitIKE.toLocaleString()} zł</span>
+                </div>
+                <label style={labelStyle}>Wpłata roczna</label>
+                <div style={inputGroupStyle}>
+                  <input 
+                    type="number" 
+                    value={wplataIKE} 
+                    onChange={(e) => setWplataIKE(Math.min(Number(e.target.value), limitIKE))} 
+                    style={inputStyle} 
+                  />
+                  <button onClick={() => setWplataIKE(limitIKE)} style={btnMaxStyle}>MAX</button>
+                </div>
+              </div>
+
+              {/* KARTA IKZE */}
+              <div style={{ ...cardStyle, flex: '1 1 300px', borderColor: '#9ae6b4', background: '#f0fff4', marginBottom: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px' }}>
+                   <strong style={{ color: '#276749' }}>IKZE</strong>
+                   <span style={{ fontSize: '11px', color: '#22543d' }}>
+                     Limit: {limitIKZE.toLocaleString()} zł 
+                     {czyFirma && limitIKZE > 10000 && ' (JDG)'}
+                   </span>
+                </div>
+                <label style={labelStyle}>Wpłata roczna</label>
+                <div style={inputGroupStyle}>
+                  <input 
+                    type="number" 
+                    value={wplataIKZE} 
+                    onChange={(e) => setWplataIKZE(Math.min(Number(e.target.value), limitIKZE))} 
+                    style={inputStyle} 
+                  />
+                  <button onClick={() => setWplataIKZE(limitIKZE)} style={{ ...btnMaxStyle, background: '#38a169' }}>MAX</button>
+                </div>
+              </div>
+            </div>
+
+            {/* WYKRES */}
+            <h4 style={{ fontSize: '14px', color: '#718096', marginBottom: '10px', textTransform: 'uppercase' }}>Prognoza kapitału (netto)</h4>
+            <div style={{ width: '100%', height: '350px', marginBottom: '30px' }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="wiek" fontSize={11} stroke="#a0aec0" tickMargin={10} />
+                  <YAxis fontSize={11} stroke="#a0aec0" tickFormatter={(val) => `${(val/1000).toFixed(0)}k`} />
+                  <Tooltip 
+                    formatter={(val) => val.toLocaleString() + ' zł'} 
+                    labelStyle={{ color: '#718096' }}
+                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                  />
+                  <Legend verticalAlign="top" height={36} iconType="circle" />
+                  <Line name="IKE" type="monotone" dataKey="IKE" stroke="#3182ce" dot={false} strokeWidth={3} activeDot={{ r: 6 }} />
+                  <Line name="IKZE + Ulga" type="monotone" dataKey="IKZE" stroke="#38a169" dot={false} strokeWidth={3} activeDot={{ r: 6 }} />
+                  <Line name="Zwykłe konto" type="monotone" dataKey="Zwykle" stroke="#e53e3e" strokeWidth={2} dot={false} strokeDasharray="5 5" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* PODSUMOWANIE */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '15px' }}>
+              <div style={{ padding: '15px', background: '#ebf8ff', borderRadius: '10px', textAlign: 'center', border: '1px solid #bee3f8' }}>
+                <div style={{ fontSize: '11px', color: '#2c5282', fontWeight: 'bold', textTransform: 'uppercase' }}>IKE (Do ręki)</div>
+                <div style={{ fontSize: '18px', fontWeight: '800', color: '#2b6cb0', marginTop: '5px' }}>
+                  {final.IKE.toLocaleString()} zł
+                </div>
+              </div>
+              
+              <div style={{ padding: '15px', background: '#f0fff4', borderRadius: '10px', textAlign: 'center', border: '1px solid #c6f6d5' }}>
+                <div style={{ fontSize: '11px', color: '#22543d', fontWeight: 'bold', textTransform: 'uppercase' }}>IKZE (Do ręki)</div>
+                <div style={{ fontSize: '18px', fontWeight: '800', color: '#2f855a', marginTop: '5px' }}>
+                  {final.IKZE.toLocaleString()} zł
+                </div>
+              </div>
+
+              <div style={{ padding: '15px', background: '#fff', borderRadius: '10px', textAlign: 'center', border: '1px solid #e2e8f0' }}>
+                 <div style={{ fontSize: '11px', color: '#718096', fontWeight: 'bold', textTransform: 'uppercase' }}>Zysk vs Zwykłe</div>
+                 <div style={{ fontSize: '18px', fontWeight: '800', color: '#4a5568', marginTop: '5px' }}>
+                   +{((final.IKE + final.IKZE) - final.Zwykle * 2).toLocaleString()} zł
+                 </div>
+              </div>
+            </div>
+
           </div>
         ) : <InfoPage />}
       </div>

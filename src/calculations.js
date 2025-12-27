@@ -1,63 +1,82 @@
-export const CONSTANTS = {
-  2025: { IKE: 24792, IKZE: 10407.60, IKZE_FIRMA: 15611.40 },
-  2026: { IKE: 26910, IKZE: 11304.00, IKZE_FIRMA: 16956.00 }
-};
+// src/calculations.js
+import { LIMITS, SOURCES_LINKS } from './data';
 
-export const SOURCES = {
-  gov_link: "https://www.gov.pl/web/rodzina/ikze-limit-wplat"
-};
+// Eksportujemy dane dalej, żeby inne komponenty mogły ich używać
+export { LIMITS, SOURCES_LINKS };
 
 export const taxes = {
   etat: [
-    { label: '12% (Skala - I próg)', value: 0.12 },
-    { label: '32% (Skala - II próg)', value: 0.32 }
+    { label: '12% (I próg)', value: 0.12 },
+    { label: '32% (II próg)', value: 0.32 }
   ],
   b2b: [
-    { label: '12% (Skala - I próg)', value: 0.12 },
-    { label: '32% (Skala - II próg)', value: 0.32 },
+    { label: '12% (Skala)', value: 0.12 },
+    { label: '32% (Skala)', value: 0.32 },
     { label: '19% (Liniowy)', value: 0.19 },
     { label: 'Ryczałt / Inne', value: 0.00 }
   ]
 };
 
-export const calculateIkzeBonus = (wplata, stawkaPodatkowa, rok, czyFirma) => {
-  const limit = czyFirma ? CONSTANTS[rok].IKZE_FIRMA : CONSTANTS[rok].IKZE;
-  const realnaWplata = Math.min(wplata, limit);
-  return Math.round((realnaWplata * stawkaPodatkowa) * 100) / 100;
-};
-
-
-export const calculateFullComparison = (data) => {
-  const { wiek, wiekEmerytura, wplataRoczna, stopaZwrotu, podatekStawka, czyFirma, rok } = data;
+export const generateChartData = (params) => {
+  const { 
+    wiek, wiekEmerytura, 
+    wplataIKE, wplataIKZE, 
+    stopaZwrotu, stopaZwrotuUlga, 
+    podatekStawka, reinwestuj 
+  } = params;
   
-  const lata = wiekEmerytura - wiek;
-  const r = stopaZwrotu / 100;
-  const limitIKZE = czyFirma ? CONSTANTS[rok].IKZE_FIRMA : CONSTANTS[rok].IKZE;
+  const lata = Math.max(0, wiekEmerytura - wiek);
+  const rMiesieczny = (stopaZwrotu / 100) / 12;
+  const rUlgaMiesieczny = (stopaZwrotuUlga / 100) / 12;
+  const podatekBelki = 0.19;
   
-  // 1. Obliczamy IKZE
-  const wplataIKZE = Math.min(wplataRoczna, limitIKZE);
-  const zwrotPodatku = wplataIKZE * podatekStawka;
+  const wplataMiesiecznaIKE = wplataIKE / 12;
+  const wplataMiesiecznaIKZE = wplataIKZE / 12;
   
-  // Wartość IKZE na koniec (przed podatkiem 10%)
-  // Wzór na sumę ciągu geometrycznego (wpłaty na początku roku)
-  const wartoscIKZE_brutto = wplataIKZE * ((Math.pow(1 + r, lata) - 1) / r) * (1 + r);
-  const wartoscIKZE_netto = wartoscIKZE_brutto * 0.9; // Podatek 10% na końcu
+  // Scenariusz "Zwykłe konto" - suma obu wpłat
+  const lacznaWplataRoczna = wplataIKE + wplataIKZE;
+  const wplataMiesiecznaZwykla = lacznaWplataRoczna / 12;
+  
+  const zwrotRoczny = wplataIKZE * podatekStawka;
+  const zwrotMiesieczny = zwrotRoczny / 12;
 
-  // 2. Obliczamy IKE
-  const wplataIKE = Math.min(wplataRoczna, CONSTANTS[rok].IKE);
-  const wartoscIKE_netto = wplataIKE * ((Math.pow(1 + r, lata) - 1) / r) * (1 + r); // Brak Belki!
+  let data = [];
+  let ike = 0;
+  let ikze = 0;
+  let zwykle = 0;
+  let ulgaAkumulowana = 0;
+  let sumaWplat = 0;
 
-  // 3. Obliczamy "Zwykłe oszczędzanie" (Benchmark) - dla porównania
-  // Tutaj płacimy Belkę (19%) co roku od zysku
-  let wartoscZwykla = 0;
-  for (let i = 0; i < lata; i++) {
-    wartoscZwykla = (wartoscZwykla + wplataRoczna) * (1 + r * (1 - 0.19));
+  data.push({
+    wiek: wiek,
+    IKE: 0,
+    IKZE: 0,
+    Zwykle: 0,
+    SumaWplat: 0
+  });
+
+  for (let rokIdx = 1; rokIdx <= lata; rokIdx++) {
+    for (let m = 1; m <= 12; m++) {
+      // 1. IKE
+      ike = (ike + wplataMiesiecznaIKE) * (1 + rMiesieczny);
+      // 2. IKZE
+      ikze = (ikze + wplataMiesiecznaIKZE) * (1 + rMiesieczny);
+      // 3. Zwykłe
+      zwykle = (zwykle + wplataMiesiecznaZwykla) * (1 + rMiesieczny * (1 - podatekBelki));
+      // 4. Reinwestycja
+      if (reinwestuj) {
+        ulgaAkumulowana = (ulgaAkumulowana + zwrotMiesieczny) * (1 + rUlgaMiesieczny * (1 - podatekBelki));
+      }
+      sumaWplat += wplataMiesiecznaZwykla;
+    }
+
+    data.push({
+      wiek: wiek + rokIdx,
+      IKE: Math.round(ike),
+      IKZE: Math.round((ikze * 0.9) + ulgaAkumulowana),
+      Zwykle: Math.round(zwykle),
+      SumaWplat: Math.round(sumaWplat)
+    });
   }
-
-  return {
-    ikze: Math.round(wartoscIKZE_netto),
-    ike: Math.round(wartoscIKE_netto),
-    zwykle: Math.round(wartoscZwykla),
-    rocznyZwrot: Math.round(zwrotPodatku)
-  };
+  return data;
 };
