@@ -6,7 +6,7 @@ export default function ResultsSection({ chartData, final, labelWplaty, reinwest
   
   // Styl kontenera wykresu
   const chartContainerStyle = { 
-    marginBottom: '10px', // Mniejszy margines pod wykresem
+    marginBottom: '10px', 
     height: '350px',
     width: '100%'
   };
@@ -36,9 +36,9 @@ export default function ResultsSection({ chartData, final, labelWplaty, reinwest
          </ResponsiveContainer>
       </div>
 
-      {/* --- PASTYLKA WPŁACONO (POPRAWIONA POZYCJA) --- */}
-      {/* Zmieniono marginTop na dodatni (20px), aby odsunąć od osi X wykresu */}
-      <div style={{ textAlign: 'center', marginBottom: '30px', marginTop: '20px' }}>
+      {/* --- PASTYLKA WPŁACONO (JESZCZE NIŻEJ) --- */}
+      {/* Zmieniono marginTop na 40px */}
+      <div style={{ textAlign: 'center', marginBottom: '30px', marginTop: '40px' }}>
          <div style={{ 
            display: 'inline-block', 
            background: '#edf2f7', 
