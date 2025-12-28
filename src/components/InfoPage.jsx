@@ -127,8 +127,17 @@ export default function InfoPage() {
         </div>
       )}
 
-      <footer style={{ textAlign: 'center', marginTop: '40px', color: '#a0aec0', fontSize: '12px' }}>
-        Kalkulator ma charakter edukacyjny i nie stanowi porady inwestycyjnej.
+      {/* --- STOPKA AUTORSKA --- */}
+      <footer style={{ textAlign: 'center', marginTop: '50px', borderTop: '1px solid #e2e8f0', paddingTop: '20px' }}>
+        <p style={{ color: '#a0aec0', fontSize: '12px', marginBottom: '5px' }}>
+          Kalkulator ma charakter edukacyjny i nie stanowi porady inwestycyjnej.
+        </p>
+        <div style={{ fontSize: '11px', color: '#cbd5e0' }}>
+          <div>Autor: Karol Zagórski</div>
+          <a href="mailto:karol.zagorski.md@gmail.com" style={{ color: '#cbd5e0', textDecoration: 'none' }}>
+            karol.zagorski.md@gmail.com
+          </a>
+        </div>
       </footer>
     </div>
   );

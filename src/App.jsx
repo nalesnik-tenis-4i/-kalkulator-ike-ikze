@@ -4,11 +4,12 @@ import InfoPage from './components/InfoPage';
 import CalculatorForm from './components/CalculatorForm';
 import ResultsSection from './components/ResultsSection';
 import ModeSelection from './components/ModeSelection';
-import './App.css'; // Upewnij się, że importujesz CSS
+import ProDashboard from './components/ProDashboard'; // <--- IMPORT
+import './App.css';
 
 function App() {
   const [activeTab, setActiveTab] = useState('kalkulator');
-  const [tryb, setTryb] = useState(null); 
+  const [tryb, setTryb] = useState(null); // 'porownanie' | 'wlasny' | 'pro' | null
   
   // --- KONFIGURACJA PODSTAWOWA ---
   const dostepneLata = useMemo(() => Object.keys(LIMITS).map(Number).sort((a, b) => b - a), []);
@@ -39,7 +40,16 @@ function App() {
   const limitIKE = limityRoczne.IKE;
   const limitWspolny = Math.min(limitIKE, limitIKZE);
 
-  // Auto-init przy wyborze trybu
+  // Detekcja Mobile (używamy tego samego progu co w ModeSelection)
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 800);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 800);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Auto-init
   useEffect(() => {
     if (tryb === 'wlasny') {
       setWplataIKE(limitIKE);
@@ -49,7 +59,7 @@ function App() {
     }
   }, [tryb, limitWspolny, limitIKE, limitIKZE]);
 
-  // Synchronizacja suwaka
+  // Sync suwaka
   useEffect(() => {
     if (tryb === 'porownanie') {
       const validKwota = Math.min(wspolnaKwota, limitWspolny);
@@ -59,7 +69,7 @@ function App() {
     }
   }, [wspolnaKwota, tryb, limitWspolny]);
 
-  // Walidacja własny
+  // Walidacja 'wlasny'
   useEffect(() => {
     if (tryb === 'wlasny') {
       if (wplataIKZE > limitIKZE) setWplataIKZE(limitIKZE);
@@ -67,7 +77,7 @@ function App() {
     }
   }, [rok, czyFirma, limitIKZE, limitIKE]);
 
-  // Podatki
+  // Sync podatku
   useEffect(() => {
     const dostepnePodatki = czyFirma ? taxes.b2b : taxes.etat;
     if (!dostepnePodatki.some(t => t.value === podatek)) {
@@ -87,33 +97,33 @@ function App() {
   const final = chartData[chartData.length - 1] || { IKE: 0, IKZE: 0, SumaWplat: 0 };
   const labelWplaty = tryb === 'porownanie' ? "Suma wpłat (na IKE lub IKZE)" : "Suma wpłat (na IKE oraz IKZE)";
 
+  // --- RENDERING ---
+  // Jeśli tryb to PRO, renderujemy Dashboard zamiast Formularza i Wykresu
+  // Jeśli tryb to porownanie/wlasny, renderujemy standardowo
+  
   return (
     <div className="app-card">
-      {/* HEADER ZAKŁADEK */}
       <div className="tabs-header">
-        <button 
-          className={`tab-btn ${activeTab === 'kalkulator' ? 'active' : ''}`}
-          onClick={() => setActiveTab('kalkulator')}
-        >
-          Kalkulator
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'info' ? 'active' : ''}`}
-          onClick={() => setActiveTab('info')}
-        >
-          Informacje
-        </button>
+        <button className={`tab-btn ${activeTab === 'kalkulator' ? 'active' : ''}`} onClick={() => setActiveTab('kalkulator')}>Kalkulator</button>
+        <button className={`tab-btn ${activeTab === 'info' ? 'active' : ''}`} onClick={() => setActiveTab('info')}>Informacje</button>
       </div>
 
-      {/* CONTENET */}
       <div className="content-container">
         {activeTab === 'kalkulator' ? (
           <>
             {!tryb ? (
-              <ModeSelection setTryb={setTryb} />
-            ) : (
+              <ModeSelection setTryb={setTryb} isMobile={isMobile} />
+            ) : tryb === 'pro' ? (
+              // --- WIDOK PRO ---
               <div>
-                {/* HEADER TRYBU */}
+                <div style={{ marginBottom: '20px' }}>
+                   <button onClick={() => setTryb(null)} style={{ background: '#edf2f7', border: 'none', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer', color: '#4a5568', fontWeight: 'bold', fontSize: '12px' }}>← Wróć do menu</button>
+                </div>
+                <ProDashboard />
+              </div>
+            ) : (
+              // --- WIDOK STANDARDOWY (Porównanie / Własny) ---
+              <div>
                 <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
                   <button onClick={() => setTryb(null)} style={{ background: '#edf2f7', border: 'none', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer', color: '#4a5568', fontWeight: 'bold', fontSize: '12px' }}>
                     ← Zmień tryb
@@ -123,7 +133,6 @@ function App() {
                   </span>
                 </div>
 
-                {/* FORMULARZ */}
                 <CalculatorForm 
                   tryb={tryb}
                   rok={rok} setRok={setRok} dostepneLata={dostepneLata}
@@ -140,7 +149,6 @@ function App() {
                   oplatyIKZE={oplatyIKZE} setOplatyIKZE={setOplatyIKZE}
                 />
 
-                {/* WYNIKI */}
                 <ResultsSection 
                   chartData={chartData} 
                   final={final} 
