@@ -1,29 +1,57 @@
 import React from 'react';
 
-// Formatowanie waluty (bez groszy dla czytelności)
-const f = (n) => Math.round(n).toLocaleString('pl-PL');
+// Formatowanie waluty
+const f = (n) => n ? Math.round(n).toLocaleString('pl-PL') : '0';
 
 // Style pomocnicze
 const thStyle = { padding: '12px 8px', textAlign: 'right', fontSize: '11px', fontWeight: '700', color: '#4b5563', borderBottom: '2px solid #e2e8f0', backgroundColor: '#f8fafc', whiteSpace: 'nowrap' };
 const tdStyle = { padding: '8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', fontSize: '12px', verticalAlign: 'middle' };
 const inputClass = (val, limit) => val > limit ? "pro-table-input limit-warning" : "pro-table-input";
 
-// --- 1. TOOLBAR ---
-export const ProToolbar = ({ fillMax, clearAll }) => (
-  <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', marginBottom: '20px', display: 'flex', flexWrap: 'wrap', gap: '20px', justifyContent: 'space-between', alignItems: 'center', border: '1px solid #e2e8f0' }}>
-    <div>
-      <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: '#1e293b' }}>Edytor Portfela Emerytalnego</h2>
-      <p style={{ fontSize: '13px', color: '#64748b', marginTop: '4px' }}>
-        Dostosuj historię zatrudnienia i wpłat. System uwzględni historyczne limity (B2B/Etat) oraz zmieniające się podatki.
-      </p>
+// Styl inputów w toolbarze
+const toolbarInputStyle = { padding: '8px', border: '1px solid #cbd5e0', borderRadius: '6px', width: '80px', textAlign: 'center', fontWeight: 'bold' };
+const toolbarLabelStyle = { fontSize: '12px', color: '#64748b', fontWeight: 'bold', display: 'block', marginBottom: '4px' };
+
+// --- 1. TOOLBAR (Edycja parametrów + Akcje) ---
+export const ProToolbar = ({ 
+  localAge, setLocalAge, 
+  localRetAge, setLocalRetAge, 
+  startYear, setStartYear,
+  fillMax, clearAll 
+}) => (
+  <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', marginBottom: '20px', border: '1px solid #e2e8f0' }}>
+    
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      
+      {/* SEKCJA DANYCH OSOBOWYCH (NOWOŚĆ) */}
+      <div style={{ display: 'flex', gap: '15px' }}>
+        <div>
+          <label style={toolbarLabelStyle}>Wiek (Start)</label>
+          <input type="number" value={localAge} onChange={(e) => setLocalAge(Number(e.target.value))} style={toolbarInputStyle} />
+        </div>
+        <div>
+          <label style={toolbarLabelStyle}>Wiek Emerytury</label>
+          <input type="number" value={localRetAge} onChange={(e) => setLocalRetAge(Number(e.target.value))} style={toolbarInputStyle} />
+        </div>
+        <div>
+          <label style={toolbarLabelStyle}>Rok Startu</label>
+          <input type="number" value={startYear} onChange={(e) => setStartYear(Number(e.target.value))} style={toolbarInputStyle} />
+        </div>
+      </div>
+
+      {/* SEKCJA AKCJI */}
+      <div style={{ display: 'flex', gap: '10px' }}>
+        <button onClick={fillMax} style={{ padding: '10px 20px', fontSize: '13px', fontWeight: '600', background: '#ebf8ff', color: '#2b6cb0', border: '1px solid #bee3f8', borderRadius: '8px', cursor: 'pointer' }}>
+           Wypełnij MAX
+        </button>
+        <button onClick={clearAll} style={{ padding: '10px 20px', fontSize: '13px', fontWeight: '600', background: '#fff', color: '#ef4444', border: '1px solid #fecaca', borderRadius: '8px', cursor: 'pointer' }}>
+           Wyczyść
+        </button>
+      </div>
     </div>
-    <div style={{ display: 'flex', gap: '10px' }}>
-      <button onClick={fillMax} style={{ padding: '10px 20px', fontSize: '13px', fontWeight: '600', background: '#ebf8ff', color: '#2b6cb0', border: '1px solid #bee3f8', borderRadius: '8px', cursor: 'pointer' }}>
-         Wypełnij MAX
-      </button>
-      <button onClick={clearAll} style={{ padding: '10px 20px', fontSize: '13px', fontWeight: '600', background: '#fff', color: '#ef4444', border: '1px solid #fecaca', borderRadius: '8px', cursor: 'pointer' }}>
-         Wyczyść
-      </button>
+    
+    <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '10px', fontStyle: 'italic' }}>
+      * Zmiana wieku lub roku startu spowoduje zresetowanie tabeli do wartości domyślnych.
     </div>
   </div>
 );
@@ -81,27 +109,39 @@ const MonthlyDetails = ({ yearData, prevCapitalIKE, prevCapitalIKZE }) => {
 // --- 3. TABELA GŁÓWNA ---
 export const ProTable = ({ results, updateRow, toggleExpand }) => (
   <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', overflowX: 'auto', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
-    <table style={{ width: '100%', minWidth: '1100px', borderCollapse: 'collapse' }}>
+    <table style={{ width: '100%', minWidth: '1300px', borderCollapse: 'collapse' }}>
       <thead>
         <tr>
           <th style={{...thStyle, textAlign: 'left', width: '30px'}}></th>
           <th style={{...thStyle, textAlign: 'left'}}>Rok (Wiek)</th>
+          
+          {/* USTAWIENIA */}
           <th style={{...thStyle, color: '#d97706', borderLeft: '1px solid #e2e8f0'}}>B2B?</th>
           <th style={{...thStyle, color: '#d97706'}}>Podatek</th>
+
+          {/* IKE */}
           <th style={{...thStyle, color: '#2563eb', borderLeft: '1px solid #e2e8f0'}}>Limit IKE</th>
-          <th style={{...thStyle, color: '#2563eb', width: '110px'}}>Wpłata IKE</th>
+          <th style={{...thStyle, color: '#2563eb', width: '90px'}}>Wpłata IKE</th>
           <th style={{...thStyle, color: '#2563eb'}}>Kapitał IKE</th>
+
+          {/* IKZE */}
           <th style={{...thStyle, color: '#16a34a', borderLeft: '1px solid #e2e8f0'}}>Limit IKZE</th>
-          <th style={{...thStyle, color: '#16a34a', width: '110px'}}>Wpłata IKZE</th>
-          <th style={{...thStyle, color: '#16a34a'}}>Zwrot PIT</th>
+          <th style={{...thStyle, color: '#16a34a', width: '90px'}}>Wpłata IKZE</th>
           <th style={{...thStyle, color: '#16a34a'}}>Kapitał IKZE</th>
-          <th style={{...thStyle, borderLeft: '1px solid #e2e8f0'}}>Zysk %</th>
+          
+          {/* REINWESTYCJA (NOWOŚĆ) */}
+          <th style={{...thStyle, color: '#805ad5', borderLeft: '1px solid #e2e8f0', textAlign: 'center'}}>Reinwest?</th>
+          <th style={{...thStyle, color: '#805ad5', width: '90px'}}>Kwota Zwrotu</th>
+          <th style={{...thStyle, color: '#805ad5'}}>% Zysk</th>
+          
+          <th style={{...thStyle, borderLeft: '1px solid #e2e8f0'}}>Zysk Rynkowy</th>
         </tr>
       </thead>
       <tbody>
         {results.map((row, idx) => {
           const prevCapitalIKE = idx > 0 ? results[idx-1].endIKE : 0;
           const prevCapitalIKZE = idx > 0 ? results[idx-1].endIKZE : 0;
+          
           return (
             <React.Fragment key={row.id}>
               <tr style={{ backgroundColor: row.id % 2 === 0 ? '#fff' : '#fcfcfc' }}>
@@ -113,24 +153,48 @@ export const ProTable = ({ results, updateRow, toggleExpand }) => (
                 <td style={{...tdStyle, textAlign: 'left', fontWeight: '600', color: '#334155'}}>
                   {row.rok} <span style={{ color: '#94a3b8', fontWeight: 'normal', fontSize: '10px' }}>({Math.floor(row.wiek)}l.)</span>
                 </td>
+
+                {/* B2B / Podatek */}
                 <td style={{...tdStyle, borderLeft: '1px solid #f1f5f9', textAlign: 'center'}}>
                   <input type="checkbox" checked={row.isCompany} onChange={(e) => updateRow(row.id, 'isCompany', e.target.checked)} style={{ cursor: 'pointer' }} />
                 </td>
                 <td style={tdStyle}>
-                  <input type="number" step="0.01" value={row.taxRate} onChange={(e) => updateRow(row.id, 'taxRate', e.target.value)} style={{ width: '40px', fontSize: '11px', border: 'none', borderBottom: '1px solid #cbd5e0', textAlign: 'right', background:'transparent' }} />
+                  <input type="number" step="0.01" value={row.taxRate} onChange={(e) => updateRow(row.id, 'taxRate', e.target.value)} style={{ width: '35px', fontSize: '11px', border: 'none', borderBottom: '1px solid #cbd5e0', textAlign: 'right', background:'transparent' }} />
                 </td>
+                
+                {/* IKE */}
                 <td style={{...tdStyle, color: '#94a3b8', borderLeft: '1px solid #f1f5f9'}}>{f(row.limitIKE)}</td>
                 <td style={tdStyle}>
                   <input type="number" value={row.wplataIKE === 0 ? '' : row.wplataIKE} placeholder="0" onChange={(e) => updateRow(row.id, 'wplataIKE', e.target.value)} className={inputClass(row.wplataIKE, row.limitIKE)} />
                   {row.wplataIKE > row.limitIKE && <div style={{fontSize:'9px', color: '#e53e3e'}}>Limit!</div>}
                 </td>
                 <td style={{...tdStyle, fontWeight: '700', color: '#2563eb'}}>{f(row.endIKE)}</td>
+
+                {/* IKZE */}
                 <td style={{...tdStyle, color: '#94a3b8', borderLeft: '1px solid #f1f5f9'}}>{f(row.effectiveLimitIKZE)}</td>
                 <td style={tdStyle}>
                    <input type="number" value={row.wplataIKZE === 0 ? '' : row.wplataIKZE} placeholder="0" onChange={(e) => updateRow(row.id, 'wplataIKZE', e.target.value)} className={inputClass(row.wplataIKZE, row.effectiveLimitIKZE)} />
                 </td>
-                <td style={{...tdStyle, color: '#16a34a', fontSize: '11px'}}>+{f(row.taxReturnYear)}</td>
                 <td style={{...tdStyle, fontWeight: '700', color: '#16a34a'}}>{f(row.endIKZE)}</td>
+
+                {/* REINWESTYCJA (LOGIKA UI) */}
+                <td style={{...tdStyle, borderLeft: '1px solid #f1f5f9', textAlign: 'center', background: row.isReinvesting ? '#faf5ff' : 'transparent'}}>
+                   <input type="checkbox" checked={row.isReinvesting} onChange={(e) => updateRow(row.id, 'isReinvesting', e.target.checked)} style={{ cursor: 'pointer', accentColor: '#805ad5' }} />
+                </td>
+                <td style={{...tdStyle, background: row.isReinvesting ? '#faf5ff' : 'transparent', color: row.isReinvesting ? '#553c9a' : '#cbd5e0' }}>
+                   {f(row.wplataIKZE * row.taxRate)}
+                </td>
+                <td style={{...tdStyle, background: row.isReinvesting ? '#faf5ff' : 'transparent'}}>
+                   <input 
+                     type="number" step="0.5" 
+                     value={row.reinvestRate} 
+                     disabled={!row.isReinvesting}
+                     onChange={(e) => updateRow(row.id, 'reinvestRate', e.target.value)} 
+                     style={{ width: '35px', textAlign: 'center', border: 'none', background: 'transparent', borderBottom: row.isReinvesting ? '1px solid #9f7aea' : '1px solid #e2e8f0', fontSize:'11px', color: row.isReinvesting ? '#000' : '#cbd5e0' }} 
+                   />
+                </td>
+
+                {/* STOPA RYNKOWA */}
                 <td style={{...tdStyle, borderLeft: '1px solid #f1f5f9'}}>
                    <input type="number" step="0.5" value={row.stopa} onChange={(e) => updateRow(row.id, 'stopa', e.target.value)} style={{ width: '35px', textAlign: 'center', border: 'none', background: 'transparent', borderBottom: '1px solid #cbd5e0', fontSize:'11px' }} />
                 </td>
@@ -144,29 +208,34 @@ export const ProTable = ({ results, updateRow, toggleExpand }) => (
   </div>
 );
 
-// --- 4. PODSUMOWANIE (Kafelki) ---
-export const ProSummary = ({ final, totalDepositsIKE }) => (
+// --- 4. PODSUMOWANIE ---
+export const ProSummary = ({ final }) => (
   <div style={{ marginTop: '40px' }}>
     <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#1e293b', marginBottom: '20px' }}>💰 Twój Emerytalny Majątek</h3>
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+      
       <div style={{ background: '#fff', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
          <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#64748b', fontWeight: '700' }}>Suma wpłat (IKE+IKZE)</div>
          <div style={{ fontSize: '26px', fontWeight: '800', color: '#0f172a', marginTop: '6px' }}>{f(final.totalPaid)} zł</div>
       </div>
+
       <div style={{ background: '#eff6ff', padding: '20px', borderRadius: '16px', border: '1px solid #dbeafe' }}>
          <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#2563eb', fontWeight: '700' }}>Konto IKE (Netto)</div>
          <div style={{ fontSize: '26px', fontWeight: '800', color: '#1e40af', marginTop: '6px' }}>{f(final.endIKE)} zł</div>
-         <div style={{ fontSize: '12px', color: '#3b82f6', marginTop: '4px' }}>Wpłacono na IKE: {f(totalDepositsIKE)} zł</div>
       </div>
+
       <div style={{ background: '#f0fdf4', padding: '20px', borderRadius: '16px', border: '1px solid #dcfce7' }}>
          <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#16a34a', fontWeight: '700' }}>Konto IKZE (Po podatku 10%)</div>
          <div style={{ fontSize: '26px', fontWeight: '800', color: '#166534', marginTop: '6px' }}>{f(final.endIKZE * 0.9)} zł</div>
          <div style={{ fontSize: '12px', color: '#22c55e', marginTop: '4px' }}>Brutto: {f(final.endIKZE)} zł</div>
       </div>
+
       <div style={{ background: '#fff7ed', padding: '20px', borderRadius: '16px', border: '2px solid #fdba74' }}>
          <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#ea580c', fontWeight: '700' }}>RAZEM (IKE + IKZE + Zwroty)</div>
          <div style={{ fontSize: '32px', fontWeight: '800', color: '#9a3412', marginTop: '6px' }}>{f( final.endIKE + (final.endIKZE * 0.9) + final.accTaxReturn )} zł</div>
-         <div style={{ fontSize: '12px', color: '#c2410c', marginTop: '4px', lineHeight: '1.4' }}>W tym odłożone zwroty podatkowe:<br/><strong>{f(final.accTaxReturn)} zł</strong></div>
+         <div style={{ fontSize: '12px', color: '#c2410c', marginTop: '4px', lineHeight: '1.4' }}>
+           W tym zreinwestowane zwroty:<br/><strong>{f(final.accTaxReturn)} zł</strong>
+         </div>
       </div>
     </div>
   </div>
