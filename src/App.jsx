@@ -119,7 +119,12 @@ function App() {
                 <div style={{ marginBottom: '20px' }}>
                    <button onClick={() => setTryb(null)} style={{ background: '#edf2f7', border: 'none', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer', color: '#4a5568', fontWeight: 'bold', fontSize: '12px' }}>← Wróć do menu</button>
                 </div>
-                <ProDashboard />
+                {/* PRZEKAZANIE PROPSÓW */}
+                <ProDashboard 
+                  chartData={chartData} 
+                  final={final} 
+                  reinwestuj={reinwestuj} 
+                />
               </div>
             ) : (
               // --- WIDOK STANDARDOWY (Porównanie / Własny) ---
