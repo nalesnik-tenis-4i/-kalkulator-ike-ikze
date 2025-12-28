@@ -1,86 +1,78 @@
-/* Główna karta aplikacji */
+#root {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  min-height: 100vh;
+  padding-top: 40px;
+  padding-bottom: 40px;
+  box-sizing: border-box;
+}
+
+/* GŁÓWNA KARTA - Domyślna (wąska) */
 .app-card {
   width: 100%;
-  max-width: 500px; /* Kluczowe: ograniczenie szerokości na PC */
-  background-color: var(--card-bg);
-  min-height: 100vh; /* Na mobile full height */
-  
-  /* Na desktopie robimy z tego ładną kartę z cieniem */
-  box-shadow: none; 
-  display: flex;
-  flex-direction: column;
+  max-width: 500px;
+  background-color: #fff;
+  border-radius: 24px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  transition: max-width 0.4s ease-in-out, width 0.4s ease-in-out;
+  margin: 0 20px;
 }
 
-/* Style tylko dla desktopu/tabletu */
-@media (min-width: 769px) {
-  .app-card {
-    min-height: auto; /* Nie musi być na całą wysokość */
-    border-radius: 20px; /* Zaokrąglone rogi */
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 
-                0 8px 10px -6px rgba(0, 0, 0, 0.1); /* Miękki cień */
-    overflow: hidden; /* Żeby rogi przycięły zawartość */
-    margin-top: 20px;
-  }
+/* --- SZEROKI TRYB PRO --- */
+.app-card.app-card-wide {
+  max-width: 1600px !important; /* Bardzo szeroko */
+  width: 95vw !important;       /* 95% szerokości okna */
 }
 
-/* Zakładki na górze */
 .tabs-header {
   display: flex;
-  background: #fff;
-  border-bottom: 1px solid #e2e8f0;
-  position: sticky;
-  top: 0;
-  z-index: 10;
+  border-bottom: 1px solid #f1f5f9;
 }
 
 .tab-btn {
   flex: 1;
-  padding: 16px;
+  padding: 18px;
   border: none;
   background: transparent;
-  font-weight: 600;
+  font-weight: 700;
   font-size: 16px;
-  color: #718096;
-  border-bottom: 3px solid transparent;
+  color: #94a3b8;
   cursor: pointer;
+  border-bottom: 3px solid transparent;
   transition: all 0.2s;
 }
 
 .tab-btn.active {
-  color: #3182ce;
-  border-bottom-color: #3182ce;
+  color: #2563eb;
+  border-bottom-color: #2563eb;
 }
 
-/* Kontener na treść wewnątrz karty */
 .content-container {
-  padding: 20px;
-  /* Jeśli treść jest długa, scrollujemy tylko środek, nie całą stronę (opcjonalne) */
+  padding: 30px;
 }
 
-/* Tryb szeroki dla wersji PRO */
-.app-card-wide {
-  max-width: 1400px !important; /* Szeroki ekran */
-  transition: max-width 0.3s ease-in-out;
-}
-
-/* Dostosowanie tabeli w trybie PRO */
+/* Style tabeli */
 .pro-table-input {
   width: 100%;
-  padding: 8px;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  font-size: 13px;
+  padding: 6px;
+  border: 1px solid #cbd5e0;
+  border-radius: 6px;
+  font-size: 12px;
   text-align: right;
+  background: #fff;
 }
-
 .pro-table-input:focus {
   outline: none;
   border-color: #3b82f6;
   box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
 }
-
 .limit-warning {
-  background-color: #fee2e2;
-  border-color: #ef4444;
-  color: #991b1b;
+  background-color: #fff5f5;
+  border-color: #fc8181;
+  color: #c53030;
 }

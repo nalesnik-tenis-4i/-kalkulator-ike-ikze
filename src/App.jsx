@@ -4,7 +4,7 @@ import InfoPage from './components/InfoPage';
 import CalculatorForm from './components/CalculatorForm';
 import ResultsSection from './components/ResultsSection';
 import ModeSelection from './components/ModeSelection';
-import ProDashboard from './components/ProDashboard'; // <--- IMPORT
+import ProDashboard from './components/ProDashboard';
 import './App.css';
 
 function App() {
@@ -34,13 +34,13 @@ function App() {
   const [wplataIKZE, setWplataIKZE] = useState(0);
   const [wspolnaKwota, setWspolnaKwota] = useState(0);
 
-  // --- LOGIKA LIMITÓW ---
+  // --- LOGIKA LIMITÓW (Dla trybu podstawowego) ---
   const limityRoczne = LIMITS[rok] || LIMITS[2025];
   const limitIKZE = (czyFirma && limityRoczne.IKZE_FIRMA) ? limityRoczne.IKZE_FIRMA : limityRoczne.IKZE;
   const limitIKE = limityRoczne.IKE;
   const limitWspolny = Math.min(limitIKE, limitIKZE);
 
-  // Detekcja Mobile (używamy tego samego progu co w ModeSelection)
+  // Detekcja Mobile
   const [isMobile, setIsMobile] = useState(window.innerWidth < 800);
 
   useEffect(() => {
@@ -85,7 +85,7 @@ function App() {
     }
   }, [czyFirma]);
 
-  // --- OBLICZENIA ---
+  // --- OBLICZENIA (Dla trybu podstawowego) ---
   const chartData = useMemo(() => generateChartData({
     wiek, wiekEmerytura, 
     wplataIKE, wplataIKZE, 
@@ -98,11 +98,9 @@ function App() {
   const labelWplaty = tryb === 'porownanie' ? "Suma wpłat (na IKE lub IKZE)" : "Suma wpłat (na IKE oraz IKZE)";
 
   // --- RENDERING ---
-  // Jeśli tryb to PRO, renderujemy Dashboard zamiast Formularza i Wykresu
-  // Jeśli tryb to porownanie/wlasny, renderujemy standardowo
-  
   return (
-    <div className="app-card">
+    // Dodajemy klasę app-card-wide tylko w trybie pro
+    <div className={`app-card ${tryb === 'pro' ? 'app-card-wide' : ''}`}>
       <div className="tabs-header">
         <button className={`tab-btn ${activeTab === 'kalkulator' ? 'active' : ''}`} onClick={() => setActiveTab('kalkulator')}>Kalkulator</button>
         <button className={`tab-btn ${activeTab === 'info' ? 'active' : ''}`} onClick={() => setActiveTab('info')}>Informacje</button>
@@ -116,14 +114,20 @@ function App() {
             ) : tryb === 'pro' ? (
               // --- WIDOK PRO ---
               <div>
-                <div style={{ marginBottom: '20px' }}>
-                   <button onClick={() => setTryb(null)} style={{ background: '#edf2f7', border: 'none', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer', color: '#4a5568', fontWeight: 'bold', fontSize: '12px' }}>← Wróć do menu</button>
+                <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between' }}>
+                   <button onClick={() => setTryb(null)} style={{ background: '#edf2f7', border: 'none', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer', color: '#4a5568', fontWeight: 'bold', fontSize: '12px' }}>
+                     ← Wróć do menu
+                   </button>
+                   <span style={{ fontSize: '12px', color: '#a0aec0' }}>Tryb Ekspercki</span>
                 </div>
-                {/* PRZEKAZANIE PROPSÓW */}
+                
+                {/* Przekazanie danych użytkownika do ProDashboard */}
                 <ProDashboard 
-                  chartData={chartData} 
-                  final={final} 
-                  reinwestuj={reinwestuj} 
+                  currentAge={wiek}             
+                  retirementAge={wiekEmerytura} 
+                  defaultTaxRate={podatek}      
+                  defaultIsCompany={czyFirma}   
+                  defaultStopa={stopaZwrotu}
                 />
               </div>
             ) : (
