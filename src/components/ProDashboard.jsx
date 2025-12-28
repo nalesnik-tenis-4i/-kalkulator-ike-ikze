@@ -11,22 +11,17 @@ export default function ProDashboard({
 }) {
   
   // --- 1. LOKALNY STAN KONFIGURACJI ---
-  // Umożliwiamy edycję wieku/dat bez wychodzenia z trybu PRO
   const [localAge, setLocalAge] = useState(currentAge);
   const [localRetAge, setLocalRetAge] = useState(retirementAge);
-  const [startYear, setStartYear] = useState(2021); // Domyślnie startujemy trochę w przeszłości
+  const [startYear, setStartYear] = useState(2021); 
 
   const [rows, setRows] = useState([]);
 
   // --- 2. GENERATOR TABELI ---
-  // Uruchamiamy go, gdy zmienią się kluczowe parametry czasu (wiek, rok startu)
   useEffect(() => {
     const currentYear = new Date().getFullYear();
-    // Obliczamy rok urodzenia na podstawie AKTUALNEGO wieku i roku kalendarzowego
-    // (zakładamy że currentAge dotyczy roku currentYear)
     const birthYear = currentYear - localAge;
     
-    // Zabezpieczenie logiczne
     const safeRetirementAge = Math.max(localRetAge, localAge + 1);
     const endYear = birthYear + safeRetirementAge;
     const finalYear = Math.max(startYear + 1, endYear);
@@ -56,9 +51,9 @@ export default function ProDashboard({
         wplataIKZE: 0,
         stopa: defaultStopa,
         
-        // Reinwestycja (Nowe pola)
+        // Reinwestycja
         isReinvesting: false,
-        reinvestRate: 4.0, // Domyślnie np. 4% (konto oszczędnościowe)
+        reinvestRate: 4.0, 
 
         expanded: false
       });
@@ -75,12 +70,12 @@ export default function ProDashboard({
     let totalPaid = 0;
     
     const results = rows.map(row => {
-      // Limit IKZE (B2B vs Etat)
+      // Limit IKZE
       const effectiveLimitIKZE = (row.isCompany && row.rawLimitIKZE_Firma > 0) 
         ? row.rawLimitIKZE_Firma 
         : row.rawLimitIKZE;
 
-      // Zysk rynkowy dla głównych kont
+      // Zysk rynkowy (Bez podatku wewnątrz IKE/IKZE)
       const interest = (row.stopa || 0) / 100;
       
       const profitIKE = ikeCapital * interest;
@@ -90,18 +85,16 @@ export default function ProDashboard({
       ikzeCapital += profitIKZE + (row.wplataIKZE || 0);
 
       // --- LOGIKA REINWESTYCJI ---
-      // 1. Obliczamy zwrot za ten rok
       const taxReturn = (row.wplataIKZE || 0) * (row.taxRate || 0.12);
       
-      // 2. Jeśli reinwestujemy, dodajemy do puli. Jeśli nie - zwrot przepada (jest "konsumowany")
+      // Tutaj liczymy Podatek Belki (19%) tylko od zysku z reinwestycji
+      // reinvestGrowth * 0.81 = reinvestGrowth * (1 - 0.19)
+      const reinvestGrowth = (row.reinvestRate || 0) / 100;
+      
       if (row.isReinvesting) {
-        // Pula rośnie o odsetki zdefiniowane w TYM WIERSZU (minus Belka)
-        const reinvestGrowth = (row.reinvestRate || 0) / 100;
         accumulatedTaxReturn = accumulatedTaxReturn * (1 + reinvestGrowth * 0.81) + taxReturn;
       } else {
-        // Pula rośnie tylko o odsetki (jeśli coś tam już było), ale nie dodajemy nowego zwrotu
-        // Zakładamy, że stara pula ma "średnie" oprocentowanie z tego wiersza
-        const reinvestGrowth = (row.reinvestRate || 0) / 100;
+        // Stara pula nadal pracuje (opodatkowana), ale nowy zwrot nie jest dodawany
         accumulatedTaxReturn = accumulatedTaxReturn * (1 + reinvestGrowth * 0.81);
       }
 
@@ -120,11 +113,15 @@ export default function ProDashboard({
 
     const defaultFinal = { totalPaid: 0, endIKE: 0, endIKZE: 0, accTaxReturn: 0 };
     const final = results.length > 0 ? results[results.length - 1] : defaultFinal;
+    
+    // Sumy wpłat na poszczególne konta
+    const totalDepositsIKE = results.reduce((acc, r) => acc + (r.wplataIKE || 0), 0);
+    const totalDepositsIKZE = results.reduce((acc, r) => acc + (r.wplataIKZE || 0), 0);
 
-    return { results, final };
+    return { results, final, totalDepositsIKE, totalDepositsIKZE };
   }, [rows]);
 
-  // --- 4. AKCJE ---
+  // --- 4. HANDLERY ---
   const updateRow = (id, field, value) => {
     setRows(prev => prev.map(r => {
       if (r.id !== id) return r;
@@ -157,7 +154,11 @@ export default function ProDashboard({
         fillMax={fillMax} clearAll={clearAll} 
       />
       <ProTable results={calculation.results} updateRow={updateRow} toggleExpand={toggleExpand} />
-      <ProSummary final={calculation.final} />
+      <ProSummary 
+        final={calculation.final} 
+        totalDepositsIKE={calculation.totalDepositsIKE}
+        totalDepositsIKZE={calculation.totalDepositsIKZE}
+      />
     </div>
   );
 }
