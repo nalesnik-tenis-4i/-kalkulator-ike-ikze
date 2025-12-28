@@ -1,42 +1,58 @@
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+/* Główna karta aplikacji */
+.app-card {
+  width: 100%;
+  max-width: 500px; /* Kluczowe: ograniczenie szerokości na PC */
+  background-color: var(--card-bg);
+  min-height: 100vh; /* Na mobile full height */
+  
+  /* Na desktopie robimy z tego ładną kartę z cieniem */
+  box-shadow: none; 
+  display: flex;
+  flex-direction: column;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
+/* Style tylko dla desktopu/tabletu */
+@media (min-width: 769px) {
+  .app-card {
+    min-height: auto; /* Nie musi być na całą wysokość */
+    border-radius: 20px; /* Zaokrąglone rogi */
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 
+                0 8px 10px -6px rgba(0, 0, 0, 0.1); /* Miękki cień */
+    overflow: hidden; /* Żeby rogi przycięły zawartość */
+    margin-top: 20px;
   }
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
+/* Zakładki na górze */
+.tabs-header {
+  display: flex;
+  background: #fff;
+  border-bottom: 1px solid #e2e8f0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
-.card {
-  padding: 2em;
+.tab-btn {
+  flex: 1;
+  padding: 16px;
+  border: none;
+  background: transparent;
+  font-weight: 600;
+  font-size: 16px;
+  color: #718096;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-.read-the-docs {
-  color: #888;
+.tab-btn.active {
+  color: #3182ce;
+  border-bottom-color: #3182ce;
+}
+
+/* Kontener na treść wewnątrz karty */
+.content-container {
+  padding: 20px;
+  /* Jeśli treść jest długa, scrollujemy tylko środek, nie całą stronę (opcjonalne) */
 }

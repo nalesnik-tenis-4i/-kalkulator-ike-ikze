@@ -4,10 +4,11 @@ import InfoPage from './components/InfoPage';
 import CalculatorForm from './components/CalculatorForm';
 import ResultsSection from './components/ResultsSection';
 import ModeSelection from './components/ModeSelection';
+import './App.css'; // Upewnij się, że importujesz CSS
 
 function App() {
   const [activeTab, setActiveTab] = useState('kalkulator');
-  const [tryb, setTryb] = useState(null); // 'porownanie' | 'wlasny' | null
+  const [tryb, setTryb] = useState(null); 
   
   // --- KONFIGURACJA PODSTAWOWA ---
   const dostepneLata = useMemo(() => Object.keys(LIMITS).map(Number).sort((a, b) => b - a), []);
@@ -48,7 +49,7 @@ function App() {
     }
   }, [tryb, limitWspolny, limitIKE, limitIKZE]);
 
-  // Synchronizacja suwaka w trybie porównania
+  // Synchronizacja suwaka
   useEffect(() => {
     if (tryb === 'porownanie') {
       const validKwota = Math.min(wspolnaKwota, limitWspolny);
@@ -58,7 +59,7 @@ function App() {
     }
   }, [wspolnaKwota, tryb, limitWspolny]);
 
-  // Walidacja w trybie własnym
+  // Walidacja własny
   useEffect(() => {
     if (tryb === 'wlasny') {
       if (wplataIKZE > limitIKZE) setWplataIKZE(limitIKZE);
@@ -66,7 +67,7 @@ function App() {
     }
   }, [rok, czyFirma, limitIKZE, limitIKE]);
 
-  // Synchronizacja podatków
+  // Podatki
   useEffect(() => {
     const dostepnePodatki = czyFirma ? taxes.b2b : taxes.etat;
     if (!dostepnePodatki.some(t => t.value === podatek)) {
@@ -74,7 +75,7 @@ function App() {
     }
   }, [czyFirma]);
 
-  // --- OBLICZENIA WYKRESU ---
+  // --- OBLICZENIA ---
   const chartData = useMemo(() => generateChartData({
     wiek, wiekEmerytura, 
     wplataIKE, wplataIKZE, 
@@ -86,25 +87,33 @@ function App() {
   const final = chartData[chartData.length - 1] || { IKE: 0, IKZE: 0, SumaWplat: 0 };
   const labelWplaty = tryb === 'porownanie' ? "Suma wpłat (na IKE lub IKZE)" : "Suma wpłat (na IKE oraz IKZE)";
 
-  // --- STYLES ---
-  const containerStyle = { maxWidth: '900px', margin: '0 auto', fontFamily: 'system-ui, sans-serif', backgroundColor: '#fff', minHeight: '100vh' };
-
   return (
-    <div style={containerStyle}>
-      {/* TABS */}
-      <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', position: 'sticky', top: 0, background: 'rgba(255,255,255,0.95)', zIndex: 10, backdropFilter: 'blur(5px)' }}>
-        <button onClick={() => setActiveTab('kalkulator')} style={{ flex: 1, padding: '16px', border: 'none', background: 'transparent', fontWeight: 'bold', color: activeTab === 'kalkulator' ? '#3182ce' : '#718096', borderBottom: activeTab === 'kalkulator' ? '3px solid #3182ce' : 'none', cursor: 'pointer' }}>Kalkulator</button>
-        <button onClick={() => setActiveTab('info')} style={{ flex: 1, padding: '16px', border: 'none', background: 'transparent', fontWeight: 'bold', color: activeTab === 'info' ? '#3182ce' : '#718096', borderBottom: activeTab === 'info' ? '3px solid #3182ce' : 'none', cursor: 'pointer' }}>Informacje</button>
+    <div className="app-card">
+      {/* HEADER ZAKŁADEK */}
+      <div className="tabs-header">
+        <button 
+          className={`tab-btn ${activeTab === 'kalkulator' ? 'active' : ''}`}
+          onClick={() => setActiveTab('kalkulator')}
+        >
+          Kalkulator
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'info' ? 'active' : ''}`}
+          onClick={() => setActiveTab('info')}
+        >
+          Informacje
+        </button>
       </div>
 
-      <div style={{ padding: '20px 20px 60px 20px' }}>
+      {/* CONTENET */}
+      <div className="content-container">
         {activeTab === 'kalkulator' ? (
           <>
             {!tryb ? (
               <ModeSelection setTryb={setTryb} />
             ) : (
               <div>
-                {/* HEADER */}
+                {/* HEADER TRYBU */}
                 <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
                   <button onClick={() => setTryb(null)} style={{ background: '#edf2f7', border: 'none', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer', color: '#4a5568', fontWeight: 'bold', fontSize: '12px' }}>
                     ← Zmień tryb
@@ -114,7 +123,7 @@ function App() {
                   </span>
                 </div>
 
-                {/* FORMULARZ DANYCH */}
+                {/* FORMULARZ */}
                 <CalculatorForm 
                   tryb={tryb}
                   rok={rok} setRok={setRok} dostepneLata={dostepneLata}
