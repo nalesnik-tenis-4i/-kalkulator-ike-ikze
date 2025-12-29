@@ -1,13 +1,12 @@
 import React from 'react';
 
-// Formatowanie waluty (bez groszy dla czytelności)
+// Formatowanie waluty
 const f = (n) => n ? Math.round(n).toLocaleString('pl-PL') : '0';
 
-// Style pomocnicze
+// Style
 const thStyle = { padding: '12px 8px', textAlign: 'right', fontSize: '11px', fontWeight: '700', color: '#4b5563', borderBottom: '2px solid #e2e8f0', backgroundColor: '#f8fafc', whiteSpace: 'nowrap' };
 const tdStyle = { padding: '8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', fontSize: '12px', verticalAlign: 'middle' };
 const inputClass = (val, limit) => val > limit ? "pro-table-input limit-warning" : "pro-table-input";
-
 const toolbarInputStyle = { padding: '8px', border: '1px solid #cbd5e0', borderRadius: '6px', width: '80px', textAlign: 'center', fontWeight: 'bold' };
 const toolbarLabelStyle = { fontSize: '12px', color: '#64748b', fontWeight: 'bold', display: 'block', marginBottom: '4px' };
 
@@ -21,7 +20,7 @@ export const ProToolbar = ({
   <div style={{ background: '#fff', padding: '20px', borderRadius: '12px', marginBottom: '20px', border: '1px solid #e2e8f0' }}>
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px', justifyContent: 'space-between', alignItems: 'flex-end' }}>
       
-      {/* SEKCJA DANYCH OSOBOWYCH */}
+      {/* SEKCJA DANYCH */}
       <div style={{ display: 'flex', gap: '15px' }}>
         <div>
           <label style={toolbarLabelStyle}>Wiek (Start)</label>
@@ -48,7 +47,7 @@ export const ProToolbar = ({
       </div>
     </div>
     <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '10px', fontStyle: 'italic' }}>
-      * Zmiana wieku lub roku startu spowoduje zresetowanie tabeli do wartości domyślnych.
+      * Zmiana wieku lub roku startu zresetuje tabelę. Ustaw te parametry przed wprowadzaniem danych.
     </div>
   </div>
 );
@@ -106,28 +105,25 @@ const MonthlyDetails = ({ yearData, prevCapitalIKE, prevCapitalIKZE }) => {
 // --- 3. TABELA GŁÓWNA ---
 export const ProTable = ({ results, updateRow, toggleExpand }) => (
   <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', overflowX: 'auto', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
-    <table style={{ width: '100%', minWidth: '1300px', borderCollapse: 'collapse' }}>
+    <table style={{ width: '100%', minWidth: '1350px', borderCollapse: 'collapse' }}>
       <thead>
         <tr>
           <th style={{...thStyle, textAlign: 'left', width: '30px'}}></th>
           <th style={{...thStyle, textAlign: 'left'}}>Rok (Wiek)</th>
           
-          {/* USTAWIENIA */}
           <th style={{...thStyle, color: '#d97706', borderLeft: '1px solid #e2e8f0'}}>B2B?</th>
           <th style={{...thStyle, color: '#d97706'}}>Podatek</th>
 
-          {/* IKE */}
           <th style={{...thStyle, color: '#2563eb', borderLeft: '1px solid #e2e8f0'}}>Limit IKE</th>
           <th style={{...thStyle, color: '#2563eb', width: '90px'}}>Wpłata IKE</th>
           <th style={{...thStyle, color: '#2563eb'}}>Kapitał IKE</th>
 
-          {/* IKZE */}
           <th style={{...thStyle, color: '#16a34a', borderLeft: '1px solid #e2e8f0'}}>Limit IKZE</th>
           <th style={{...thStyle, color: '#16a34a', width: '90px'}}>Wpłata IKZE</th>
           <th style={{...thStyle, color: '#16a34a'}}>Kapitał IKZE</th>
           
-          {/* REINWESTYCJA (Zmieniony tekst i szerokość) */}
-          <th style={{...thStyle, color: '#805ad5', borderLeft: '1px solid #e2e8f0', textAlign: 'center', width: '140px'}}>
+          {/* REINWESTYCJA - ZMIENIONY TEKST */}
+          <th style={{...thStyle, color: '#805ad5', borderLeft: '1px solid #e2e8f0', textAlign: 'center', width: '150px'}}>
              Reinwestycja<br/>oszczędności z IKZE
           </th>
           <th style={{...thStyle, color: '#805ad5', width: '90px'}}>Kwota Zwrotu</th>
@@ -140,6 +136,13 @@ export const ProTable = ({ results, updateRow, toggleExpand }) => (
         {results.map((row, idx) => {
           const prevCapitalIKE = idx > 0 ? results[idx-1].endIKE : 0;
           const prevCapitalIKZE = idx > 0 ? results[idx-1].endIKZE : 0;
+
+          // LOGIKA ODBLOKOWANIA KOMÓREK W DÓŁ:
+          // Oprocentowanie reinwestycji jest aktywne, jeśli:
+          // 1. W tym roku reinwestujemy (checkbox true)
+          // 2. LUB w poprzednim roku saldo reinwestycji było dodatnie (pieniądze leżą i pracują)
+          const hasAccumulatedCapital = idx > 0 && results[idx-1].accTaxReturn > 1; // >1 zł żeby uniknąć groszowych błędów
+          const isReinvestActive = row.isReinvesting || hasAccumulatedCapital;
           
           return (
             <React.Fragment key={row.id}>
@@ -183,13 +186,14 @@ export const ProTable = ({ results, updateRow, toggleExpand }) => (
                 <td style={{...tdStyle, background: row.isReinvesting ? '#faf5ff' : 'transparent', color: row.isReinvesting ? '#553c9a' : '#cbd5e0' }}>
                    {f(row.wplataIKZE * row.taxRate)}
                 </td>
-                <td style={{...tdStyle, background: row.isReinvesting ? '#faf5ff' : 'transparent'}}>
+                <td style={{...tdStyle, background: isReinvestActive ? '#faf5ff' : 'transparent'}}>
                    <input 
                      type="number" step="0.5" 
                      value={row.reinvestRate} 
-                     disabled={!row.isReinvesting}
+                     // ODBLOKOWANE JEŚLI JEST KAPITAŁ Z PRZESZŁOŚCI LUB OBECNA WPŁATA
+                     disabled={!isReinvestActive}
                      onChange={(e) => updateRow(row.id, 'reinvestRate', e.target.value)} 
-                     style={{ width: '35px', textAlign: 'center', border: 'none', background: 'transparent', borderBottom: row.isReinvesting ? '1px solid #9f7aea' : '1px solid #e2e8f0', fontSize:'11px', color: row.isReinvesting ? '#000' : '#cbd5e0' }} 
+                     style={{ width: '35px', textAlign: 'center', border: 'none', background: 'transparent', borderBottom: isReinvestActive ? '1px solid #9f7aea' : '1px solid #e2e8f0', fontSize:'11px', color: isReinvestActive ? '#000' : '#cbd5e0' }} 
                    />
                 </td>
 
@@ -207,55 +211,57 @@ export const ProTable = ({ results, updateRow, toggleExpand }) => (
   </div>
 );
 
-// --- 4. PODSUMOWANIE (Ze Disclaimerami i sumami wpłat) ---
+// --- 4. PODSUMOWANIE (DISCLAIMER I PODZIAŁ WPŁAT) ---
 export const ProSummary = ({ final, totalDepositsIKE, totalDepositsIKZE }) => (
   <div style={{ marginTop: '40px' }}>
     <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#1e293b', marginBottom: '20px' }}>💰 Twój Emerytalny Majątek</h3>
     
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
       
-      {/* BOX 1: WPŁACONO ŁĄCZNIE */}
+      {/* 1. WPŁATY */}
       <div style={{ background: '#fff', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
          <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#64748b', fontWeight: '700' }}>Suma wpłat (IKE+IKZE)</div>
          <div style={{ fontSize: '26px', fontWeight: '800', color: '#0f172a', marginTop: '6px' }}>{f(final.totalPaid)} zł</div>
       </div>
 
-      {/* BOX 2: IKE */}
+      {/* 2. IKE */}
       <div style={{ background: '#eff6ff', padding: '20px', borderRadius: '16px', border: '1px solid #dbeafe' }}>
          <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#2563eb', fontWeight: '700' }}>Konto IKE (Netto)</div>
          <div style={{ fontSize: '26px', fontWeight: '800', color: '#1e40af', marginTop: '6px' }}>{f(final.endIKE)} zł</div>
-         <div style={{ fontSize: '12px', color: '#3b82f6', marginTop: '4px' }}>Wpłacono na IKE: {f(totalDepositsIKE)} zł</div>
-      </div>
-
-      {/* BOX 3: IKZE */}
-      <div style={{ background: '#f0fdf4', padding: '20px', borderRadius: '16px', border: '1px solid #dcfce7' }}>
-         <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#16a34a', fontWeight: '700' }}>Konto IKZE (Po podatku 10%)</div>
-         <div style={{ fontSize: '26px', fontWeight: '800', color: '#166534', marginTop: '6px' }}>{f(final.endIKZE * 0.9)} zł</div>
-         <div style={{ fontSize: '12px', color: '#22c55e', marginTop: '4px' }}>
-            Brutto: {f(final.endIKZE)} zł <br/>
-            Wpłacono na IKZE: {f(totalDepositsIKZE)} zł
+         <div style={{ fontSize: '12px', color: '#3b82f6', marginTop: '6px', borderTop: '1px solid #dbeafe', paddingTop: '6px' }}>
+           Wpłacono na IKE: <strong>{f(totalDepositsIKE)} zł</strong>
          </div>
       </div>
 
-      {/* BOX 4: RAZEM + ZWROTY */}
+      {/* 3. IKZE */}
+      <div style={{ background: '#f0fdf4', padding: '20px', borderRadius: '16px', border: '1px solid #dcfce7' }}>
+         <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#16a34a', fontWeight: '700' }}>Konto IKZE (Po podatku 10%)</div>
+         <div style={{ fontSize: '26px', fontWeight: '800', color: '#166534', marginTop: '6px' }}>{f(final.endIKZE * 0.9)} zł</div>
+         <div style={{ fontSize: '12px', color: '#22c55e', marginTop: '6px', borderTop: '1px solid #dcfce7', paddingTop: '6px' }}>
+            Brutto: {f(final.endIKZE)} zł <br/>
+            Wpłacono na IKZE: <strong>{f(totalDepositsIKZE)} zł</strong>
+         </div>
+      </div>
+
+      {/* 4. TOTAL */}
       <div style={{ background: '#fff7ed', padding: '20px', borderRadius: '16px', border: '2px solid #fdba74' }}>
          <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#ea580c', fontWeight: '700' }}>RAZEM (IKE + IKZE + Zwroty)</div>
          <div style={{ fontSize: '32px', fontWeight: '800', color: '#9a3412', marginTop: '6px' }}>{f( final.endIKE + (final.endIKZE * 0.9) + final.accTaxReturn )} zł</div>
-         <div style={{ fontSize: '12px', color: '#c2410c', marginTop: '4px', lineHeight: '1.4' }}>
+         <div style={{ fontSize: '12px', color: '#c2410c', marginTop: '6px', lineHeight: '1.4', borderTop: '1px solid #fed7aa', paddingTop: '6px' }}>
            W tym zreinwestowane zwroty:<br/><strong>{f(final.accTaxReturn)} zł</strong>
          </div>
       </div>
     </div>
 
-    {/* SEKCJA ZASTRZEŻEŃ (DISCLAIMERS) */}
-    <div style={{ marginTop: '50px', borderTop: '1px solid #e2e8f0', paddingTop: '20px', color: '#94a3b8', fontSize: '11px', lineHeight: '1.6' }}>
-       <p style={{ fontWeight: 'bold', marginBottom: '5px' }}>Zastrzeżenia prawne:</p>
+    {/* --- SEKCJA DISCLAIMERS --- */}
+    <div style={{ marginTop: '60px', borderTop: '1px solid #e2e8f0', paddingTop: '20px', color: '#94a3b8', fontSize: '11px', lineHeight: '1.6' }}>
+       <p style={{ fontWeight: 'bold', marginBottom: '8px', color: '#64748b' }}>Zastrzeżenia prawne i metodologiczne:</p>
        <ul style={{ listStyleType: 'disc', paddingLeft: '20px', margin: 0 }}>
-         <li>Kalkulator jest narzędziem poglądowym. Rzeczywiste wyniki inwestycji mogą się różnić w zależności od sytuacji rynkowej, inflacji i zmian prawnych.</li>
-         <li>Dla lat przyszłych przyjęto założenie, że limity wpłat będą równe najwyższym obecnie ogłoszonym lub szacowanym limitom. W rzeczywistości limity te zmieniają się co roku.</li>
-         <li>Obliczenia nie uwzględniają kosztów przedterminowego zakończenia oszczędzania (tzw. "zwrotu" w rozumieniu ustawy), opłat likwidacyjnych ani prowizji maklerskich (chyba że uwzględniono je w stopie zwrotu).</li>
-         <li>Reinwestycja zwrotu podatku uwzględnia podatek od zysków kapitałowych (Podatek Belki 19%), natomiast zyski wewnątrz IKE/IKZE są prezentowane jako zwolnione z tego podatku (przy spełnieniu warunków wypłaty).</li>
-         <li>Prezentowane informacje nie stanowią porady inwestycyjnej ani rekomendacji w rozumieniu przepisów prawa.</li>
+         <li><strong>To nie jest porada inwestycyjna:</strong> Prezentowane informacje nie stanowią rekomendacji finansowej w rozumieniu przepisów prawa. Decyzje inwestycyjne podejmujesz na własne ryzyko.</li>
+         <li><strong>Uproszczony model:</strong> Kalkulator zakłada roczną kapitalizację odsetek oraz pobieranie opłat/podatków w cyklach rocznych. W rzeczywistości banki mogą naliczać odsetki dziennie, a fundusze wyceniać jednostki w czasie rzeczywistym.</li>
+         <li><strong>Przyszłość jest nieznana:</strong> Dla lat przyszłych przyjęto limity wpłat równe limitom z roku 2026. W rzeczywistości są one waloryzowane o wskaźnik średniego wynagrodzenia i mogą ulec zmianie.</li>
+         <li><strong>Koszty wyjścia:</strong> Obliczenia zakładają dotrwanie do wieku emerytalnego (60/65 lat). Nie uwzględniono kosztów przedterminowego "zwrotu" środków, które wiążą się z koniecznością zapłaty podatku dochodowego (IKZE) lub podatku Belki (IKE).</li>
+         <li><strong>Podatki:</strong> W kolumnie "Reinwestycja" zysk jest pomniejszany o 19% podatku od zysków kapitałowych. Główne konta IKE/IKZE rosną w symulacji bez podatku (przy założeniu spełnienia warunków ustawowych przy wypłacie).</li>
        </ul>
     </div>
   </div>
