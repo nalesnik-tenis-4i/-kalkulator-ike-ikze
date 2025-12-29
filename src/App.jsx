@@ -9,41 +9,74 @@ import './App.css';
 
 // --- KOMPONENT POPUPU OSTRZEGAWCZEGO ---
 const WindowWarning = ({ width }) => {
-  // Jeśli jest szeroko (>= 1475px), nie pokazujemy nic
-  if (width >= 1475) return null;
+  const [isDismissed, setIsDismissed] = useState(false);
+
+  // 1. Sprawdź sesję przy załadowaniu
+  useEffect(() => {
+    const sessionValue = sessionStorage.getItem('pro_warning_dismissed');
+    if (sessionValue === 'true') {
+      setIsDismissed(true);
+    }
+  }, []);
+
+  const handleClose = () => {
+    setIsDismissed(true);
+    sessionStorage.setItem('pro_warning_dismissed', 'true');
+  };
+
+  // Jeśli jest szeroko (>= 1475px) LUB użytkownik zamknął, nie pokazujemy nic
+  if (width >= 1475 || isDismissed) return null;
 
   const isCritical = width < 1100;
 
-  // Style dla wersji KRYTYCZNEJ (< 1100px) - Blokuje uwagę
+  // --- WERSJA KRYTYCZNA (< 1100px) ---
   if (isCritical) {
     return (
       <div style={{
         position: 'fixed',
-        top: '20px',
+        top: '80px', // Trochę niżej, żeby nie zasłaniać zakładek
         left: '50%',
         transform: 'translateX(-50%)',
-        backgroundColor: '#fff5f5',
+        backgroundColor: '#fff',
         border: '2px solid #e53e3e',
-        color: '#c53030',
-        padding: '15px 25px',
+        color: '#2d3748',
+        padding: '20px 30px',
         borderRadius: '12px',
         zIndex: 9999,
-        boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
+        boxShadow: '0 20px 40px rgba(0,0,0,0.3)',
         textAlign: 'center',
-        maxWidth: '90%',
-        animation: 'slideDown 0.5s ease-out'
+        maxWidth: '400px',
+        animation: 'slideDown 0.4s ease-out'
       }}>
-        <div style={{ fontSize: '24px', marginBottom: '5px' }}>🛑</div>
-        <strong style={{ display: 'block', marginBottom: '5px' }}>Okno jest zdecydowanie za wąskie!</strong>
-        <div style={{ fontSize: '13px' }}>
+        <div style={{ fontSize: '32px', marginBottom: '10px' }}>🛑</div>
+        <strong style={{ display: 'block', marginBottom: '8px', fontSize: '16px', color: '#c53030' }}>
+          Okno jest zdecydowanie za wąskie!
+        </strong>
+        <div style={{ fontSize: '13px', color: '#4a5568', marginBottom: '15px', lineHeight: '1.5' }}>
           Tryb PRO wymaga szerokości min. 1100px.<br/>
-          Tabela może być nieczytelna. Proszę rozszerzyć okno przeglądarki.
+          Tabela będzie nieczytelna. Proszę rozszerzyć okno.
         </div>
+        
+        <button 
+          onClick={handleClose}
+          style={{
+            background: '#e53e3e',
+            color: '#fff',
+            border: 'none',
+            padding: '8px 16px',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            fontSize: '12px'
+          }}
+        >
+          Rozumiem, pokaż mimo to
+        </button>
       </div>
     );
   }
 
-  // Style dla wersji ŁAGODNEJ (1100 - 1475px) - Dyskretna sugestia
+  // --- WERSJA ŁAGODNA (1100 - 1475px) ---
   return (
     <div style={{
       position: 'fixed',
@@ -53,14 +86,33 @@ const WindowWarning = ({ width }) => {
       border: '1px solid #fbd38d',
       borderLeft: '5px solid #dd6b20',
       color: '#7b341e',
-      padding: '15px',
+      padding: '15px 35px 15px 15px', // Więcej paddingu z prawej na "X"
       borderRadius: '8px',
       zIndex: 9999,
       boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
       fontSize: '13px',
-      maxWidth: '300px',
-      animation: 'fadeIn 0.5s ease-out'
+      maxWidth: '320px',
+      animation: 'fadeIn 0.5s ease-out',
+      position: 'fixed'
     }}>
+      <button 
+        onClick={handleClose}
+        style={{
+          position: 'absolute',
+          top: '5px',
+          right: '5px',
+          background: 'transparent',
+          border: 'none',
+          color: '#c05621',
+          fontWeight: 'bold',
+          cursor: 'pointer',
+          fontSize: '14px',
+          padding: '5px'
+        }}
+      >
+        ✕
+      </button>
+      
       <strong style={{ display: 'block', marginBottom: '4px', color: '#c05621' }}>💡 Wskazówka</strong>
       Dla pełnego komfortu pracy z tabelą zalecamy rozszerzenie okna powyżej <strong>1475px</strong>.
     </div>
