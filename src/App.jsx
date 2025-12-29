@@ -9,7 +9,7 @@ import './App.css';
 
 function App() {
   const [activeTab, setActiveTab] = useState('kalkulator');
-  const [tryb, setTryb] = useState(null); // 'porownanie' | 'wlasny' | 'pro' | null
+  const [tryb, setTryb] = useState(null); 
   
   // --- KONFIGURACJA PODSTAWOWA ---
   const dostepneLata = useMemo(() => Object.keys(LIMITS).map(Number).sort((a, b) => b - a), []);
@@ -34,7 +34,7 @@ function App() {
   const [wplataIKZE, setWplataIKZE] = useState(0);
   const [wspolnaKwota, setWspolnaKwota] = useState(0);
 
-  // --- LOGIKA LIMITÓW (Dla trybu podstawowego) ---
+  // --- LOGIKA LIMITÓW ---
   const limityRoczne = LIMITS[rok] || LIMITS[2025];
   const limitIKZE = (czyFirma && limityRoczne.IKZE_FIRMA) ? limityRoczne.IKZE_FIRMA : limityRoczne.IKZE;
   const limitIKE = limityRoczne.IKE;
@@ -85,7 +85,7 @@ function App() {
     }
   }, [czyFirma]);
 
-  // --- OBLICZENIA (Dla trybu podstawowego) ---
+  // --- OBLICZENIA ---
   const chartData = useMemo(() => generateChartData({
     wiek, wiekEmerytura, 
     wplataIKE, wplataIKZE, 
@@ -99,11 +99,29 @@ function App() {
 
   // --- RENDERING ---
   return (
-    // Dodajemy klasę app-card-wide tylko w trybie pro
     <div className={`app-card ${tryb === 'pro' ? 'app-card-wide' : ''}`}>
       <div className="tabs-header">
-        <button className={`tab-btn ${activeTab === 'kalkulator' ? 'active' : ''}`} onClick={() => setActiveTab('kalkulator')}>Kalkulator</button>
-        <button className={`tab-btn ${activeTab === 'info' ? 'active' : ''}`} onClick={() => setActiveTab('info')}>Informacje</button>
+        <button 
+          className={`tab-btn ${activeTab === 'kalkulator' ? 'active' : ''}`} 
+          onClick={() => setActiveTab('kalkulator')}
+          style={{
+            // Nadpisujemy style inline dla aktywnego taba kolorem #00A8BB
+            color: activeTab === 'kalkulator' ? '#00A8BB' : '#B2B2B2',
+            borderBottomColor: activeTab === 'kalkulator' ? '#00A8BB' : 'transparent'
+          }}
+        >
+          Kalkulator
+        </button>
+        <button 
+          className={`tab-btn ${activeTab === 'info' ? 'active' : ''}`} 
+          onClick={() => setActiveTab('info')}
+          style={{
+            color: activeTab === 'info' ? '#00A8BB' : '#B2B2B2',
+            borderBottomColor: activeTab === 'info' ? '#00A8BB' : 'transparent'
+          }}
+        >
+          Informacje
+        </button>
       </div>
 
       <div className="content-container">
@@ -112,16 +130,14 @@ function App() {
             {!tryb ? (
               <ModeSelection setTryb={setTryb} isMobile={isMobile} />
             ) : tryb === 'pro' ? (
-              // --- WIDOK PRO ---
               <div>
                 <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'space-between' }}>
-                   <button onClick={() => setTryb(null)} style={{ background: '#edf2f7', border: 'none', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer', color: '#4a5568', fontWeight: 'bold', fontSize: '12px' }}>
+                   <button onClick={() => setTryb(null)} style={{ background: '#f7fafc', border: `1px solid #e2e8f0`, padding: '8px 12px', borderRadius: '6px', cursor: 'pointer', color: '#B2B2B2', fontWeight: 'bold', fontSize: '12px' }}>
                      ← Wróć do menu
                    </button>
-                   <span style={{ fontSize: '12px', color: '#a0aec0' }}>Tryb Ekspercki</span>
+                   <span style={{ fontSize: '12px', color: '#B2B2B2' }}>Tryb Ekspercki</span>
                 </div>
                 
-                {/* Przekazanie danych użytkownika do ProDashboard */}
                 <ProDashboard 
                   currentAge={wiek}             
                   retirementAge={wiekEmerytura} 
@@ -131,10 +147,9 @@ function App() {
                 />
               </div>
             ) : (
-              // --- WIDOK STANDARDOWY (Porównanie / Własny) ---
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', marginBottom: '20px' }}>
-                  <button onClick={() => setTryb(null)} style={{ background: '#edf2f7', border: 'none', padding: '8px 12px', borderRadius: '6px', cursor: 'pointer', color: '#4a5568', fontWeight: 'bold', fontSize: '12px' }}>
+                  <button onClick={() => setTryb(null)} style={{ background: '#f7fafc', border: `1px solid #e2e8f0`, padding: '8px 12px', borderRadius: '6px', cursor: 'pointer', color: '#B2B2B2', fontWeight: 'bold', fontSize: '12px' }}>
                     ← Zmień tryb
                   </button>
                   <span style={{ marginLeft: '15px', fontWeight: 'bold', color: '#2d3748' }}>
