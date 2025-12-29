@@ -1,15 +1,82 @@
 import React from 'react';
 
+// Formatowanie waluty
 const f = (n) => n ? Math.round(n).toLocaleString('pl-PL') : '0';
 
-// Style pomocnicze z nowymi kolorami
+// --- STYLE ---
 const thStyle = { padding: '12px 8px', textAlign: 'right', fontSize: '11px', fontWeight: '700', color: '#B2B2B2', borderBottom: '2px solid #e2e8f0', backgroundColor: '#f9f9f9', whiteSpace: 'nowrap' };
 const tdStyle = { padding: '8px', borderBottom: '1px solid #f1f5f9', textAlign: 'right', fontSize: '12px', verticalAlign: 'middle' };
-// Ostrzeżenie na czerwono/koralowo
 const inputClass = (val, limit) => val > limit ? "pro-table-input limit-warning" : "pro-table-input";
 
 const toolbarInputStyle = { padding: '8px', border: '1px solid #e2e8f0', borderRadius: '6px', width: '80px', textAlign: 'center', fontWeight: 'bold', color: '#2d3748' };
-const toolbarLabelStyle = { fontSize: '12px', color: '#B2B2B2', fontWeight: 'bold', display: 'block', marginBottom: '4px' };
+const toolbarLabelStyle = { fontSize: '12px', color: '#B2B2B2', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '4px' };
+
+// --- POMOCNICZY KOMPONENT: KOMÓRKA PODATKU ---
+const TaxCell = ({ row, updateRow }) => {
+  // Opcje standardowe
+  const options = [
+    { label: '12%', value: 0.12 },
+    { label: '32%', value: 0.32 }
+  ];
+  
+  // Dla firmy dochodzi Liniowy 19%
+  if (row.isCompany) {
+    options.push({ label: '19%', value: 0.19 });
+  }
+
+  // Logika zmiany selecta
+  const handleSelectChange = (e) => {
+    const val = e.target.value;
+    if (val === 'CUSTOM') {
+      updateRow(row.id, 'isTaxCustom', true); // Przełącz na tryb ręczny
+      updateRow(row.id, 'taxRate', 0); // Reset lub domyślna dla ryczałtu
+    } else {
+      updateRow(row.id, 'taxRate', Number(val));
+    }
+  };
+
+  // 1. TRYB RĘCZNY (Input) - tylko dla firmy po wybraniu "Inny"
+  if (row.isCompany && row.isTaxCustom) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '4px' }}>
+        <input 
+          type="number" step="0.005" 
+          value={row.taxRate} 
+          onChange={(e) => updateRow(row.id, 'taxRate', e.target.value)} 
+          style={{ width: '45px', fontSize: '11px', border: '1px solid #F16A61', borderRadius: '4px', textAlign: 'right', padding: '2px' }} 
+          title="Wpisz stawkę (np. 0.085 dla 8,5%)"
+        />
+        <button 
+          onClick={() => updateRow(row.id, 'isTaxCustom', false)}
+          style={{ border: 'none', background: 'transparent', color: '#B2B2B2', cursor: 'pointer', fontSize: '10px', fontWeight: 'bold' }}
+          title="Wróć do listy"
+        >
+          ✕
+        </button>
+      </div>
+    );
+  }
+
+  // 2. TRYB LISTY (Select)
+  return (
+    <select 
+      value={options.some(o => o.value === row.taxRate) ? row.taxRate : 'CUSTOM'} // Jeśli wartość nie pasuje do listy, pokazujemy Custom (lub najbliższy)
+      onChange={handleSelectChange}
+      style={{ 
+        width: '100%', border: 'none', background: 'transparent', 
+        fontSize: '11px', textAlign: 'right', direction: 'rtl', 
+        color: '#2d3748', cursor: 'pointer', borderBottom: '1px solid #cbd5e0' 
+      }}
+    >
+      {options.map(opt => (
+        <option key={opt.value} value={opt.value}>{opt.label}</option>
+      ))}
+      {/* Opcja "Inny" tylko dla firmy */}
+      {row.isCompany && <option value="CUSTOM">Inny / Ryczałt</option>}
+    </select>
+  );
+};
+
 
 // --- 1. TOOLBAR ---
 export const ProToolbar = ({ 
@@ -22,9 +89,9 @@ export const ProToolbar = ({
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '30px', justifyContent: 'space-between', alignItems: 'flex-end' }}>
       
       {/* DANE */}
-      <div style={{ display: 'flex', gap: '15px' }}>
+      <div style={{ display: 'flex', gap: '20px' }}>
         <div>
-          <label style={toolbarLabelStyle}>Wiek (Start)</label>
+          <label style={toolbarLabelStyle}>Wiek obecny (2025)</label>
           <input type="number" value={localAge} onChange={(e) => setLocalAge(Number(e.target.value))} style={toolbarInputStyle} />
         </div>
         <div>
@@ -32,12 +99,20 @@ export const ProToolbar = ({
           <input type="number" value={localRetAge} onChange={(e) => setLocalRetAge(Number(e.target.value))} style={toolbarInputStyle} />
         </div>
         <div>
-          <label style={toolbarLabelStyle}>Rok Startu</label>
+          <label style={toolbarLabelStyle}>
+            Rok startu arkusza kalkulacyjnego
+            <div 
+              style={{ cursor: 'help', fontSize: '14px' }} 
+              title="Jeśli zaczęłaś_eś inwestować przed 2025 - wpisz rok pierwszej wpłaty, aby odtworzyć historię wpłat."
+            >
+              ℹ️
+            </div>
+          </label>
           <input type="number" value={startYear} onChange={(e) => setStartYear(Number(e.target.value))} style={toolbarInputStyle} />
         </div>
       </div>
 
-      {/* AKCJE - Turkus dla akcji, Koral dla resetu */}
+      {/* AKCJE */}
       <div style={{ display: 'flex', gap: '10px' }}>
         <button onClick={fillMax} style={{ padding: '10px 20px', fontSize: '13px', fontWeight: '600', background: '#00A8BB', color: '#fff', border: '1px solid #00A8BB', borderRadius: '8px', cursor: 'pointer' }}>
            Wypełnij MAX
@@ -48,7 +123,7 @@ export const ProToolbar = ({
       </div>
     </div>
     <div style={{ fontSize: '12px', color: '#B2B2B2', marginTop: '10px', fontStyle: 'italic' }}>
-      * Zmiana wieku lub roku startu zresetuje tabelę.
+      * Zmiana wieku lub roku startu zresetuje wpisane dane w tabeli.
     </div>
   </div>
 );
@@ -115,17 +190,17 @@ export const ProTable = ({ results, updateRow, toggleExpand }) => (
           <th style={{...thStyle, color: '#F16A61', borderLeft: '1px solid #e2e8f0'}}>B2B?</th>
           <th style={{...thStyle, color: '#F16A61'}}>Podatek</th>
 
-          {/* IKE - TURKUS */}
+          {/* IKE */}
           <th style={{...thStyle, color: '#00A8BB', borderLeft: '1px solid #e2e8f0'}}>Limit IKE</th>
           <th style={{...thStyle, color: '#00A8BB', width: '90px'}}>Wpłata IKE</th>
           <th style={{...thStyle, color: '#00A8BB'}}>Kapitał IKE</th>
 
-          {/* IKZE - ZŁOTO */}
+          {/* IKZE */}
           <th style={{...thStyle, color: '#D4A017', borderLeft: '1px solid #e2e8f0'}}>Limit IKZE</th>
           <th style={{...thStyle, color: '#D4A017', width: '90px'}}>Wpłata IKZE</th>
           <th style={{...thStyle, color: '#D4A017'}}>Kapitał IKZE</th>
           
-          {/* REINWESTYCJA - KORAL */}
+          {/* REINWESTYCJA */}
           <th style={{...thStyle, color: '#F16A61', borderLeft: '1px solid #e2e8f0', textAlign: 'center', width: '150px'}}>
              Reinwestycja<br/>oszczędności z IKZE
           </th>
@@ -154,11 +229,14 @@ export const ProTable = ({ results, updateRow, toggleExpand }) => (
                   {row.rok} <span style={{ color: '#B2B2B2', fontWeight: 'normal', fontSize: '10px' }}>({Math.floor(row.wiek)}l.)</span>
                 </td>
 
+                {/* B2B Checkbox */}
                 <td style={{...tdStyle, borderLeft: '1px solid #f1f5f9', textAlign: 'center'}}>
                   <input type="checkbox" checked={row.isCompany} onChange={(e) => updateRow(row.id, 'isCompany', e.target.checked)} style={{ cursor: 'pointer', accentColor: '#F16A61' }} />
                 </td>
+                
+                {/* Podatek - Sprytny Komponent */}
                 <td style={tdStyle}>
-                  <input type="number" step="0.01" value={row.taxRate} onChange={(e) => updateRow(row.id, 'taxRate', e.target.value)} style={{ width: '35px', fontSize: '11px', border: 'none', borderBottom: '1px solid #cbd5e0', textAlign: 'right', background:'transparent' }} />
+                  <TaxCell row={row} updateRow={updateRow} />
                 </td>
                 
                 {/* IKE */}
@@ -206,20 +284,20 @@ export const ProTable = ({ results, updateRow, toggleExpand }) => (
   </div>
 );
 
-// --- 4. PODSUMOWANIE PRO ---
+// --- 4. PODSUMOWANIE ---
 export const ProSummary = ({ final, totalDepositsIKE, totalDepositsIKZE }) => (
   <div style={{ marginTop: '40px' }}>
     <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#2d3748', marginBottom: '20px' }}>💰 Twój Emerytalny Majątek</h3>
     
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
       
-      {/* BOX 1: WPŁACONO */}
+      {/* BOX 1 */}
       <div style={{ background: '#fff', padding: '20px', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
          <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#B2B2B2', fontWeight: '700' }}>Suma wpłat (IKE+IKZE)</div>
          <div style={{ fontSize: '26px', fontWeight: '800', color: '#2d3748', marginTop: '6px' }}>{f(final.totalPaid)} zł</div>
       </div>
 
-      {/* BOX 2: IKE */}
+      {/* BOX 2 */}
       <div style={{ background: 'rgba(0, 168, 187, 0.05)', padding: '20px', borderRadius: '16px', border: '1px solid #00A8BB' }}>
          <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#00A8BB', fontWeight: '700' }}>Konto IKE (Netto)</div>
          <div style={{ fontSize: '26px', fontWeight: '800', color: '#00A8BB', marginTop: '6px' }}>{f(final.endIKE)} zł</div>
@@ -228,7 +306,7 @@ export const ProSummary = ({ final, totalDepositsIKE, totalDepositsIKZE }) => (
          </div>
       </div>
 
-      {/* BOX 3: IKZE */}
+      {/* BOX 3 */}
       <div style={{ background: 'rgba(212, 160, 23, 0.05)', padding: '20px', borderRadius: '16px', border: '1px solid #D4A017' }}>
          <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#D4A017', fontWeight: '700' }}>Konto IKZE (Po podatku 10%)</div>
          <div style={{ fontSize: '26px', fontWeight: '800', color: '#D4A017', marginTop: '6px' }}>{f(final.endIKZE * 0.9)} zł</div>
@@ -238,7 +316,7 @@ export const ProSummary = ({ final, totalDepositsIKE, totalDepositsIKZE }) => (
          </div>
       </div>
 
-      {/* BOX 4: RAZEM */}
+      {/* BOX 4 */}
       <div style={{ background: '#fff', padding: '20px', borderRadius: '16px', border: '2px solid #F16A61' }}>
          <div style={{ fontSize: '11px', textTransform: 'uppercase', color: '#F16A61', fontWeight: '700' }}>RAZEM (IKE + IKZE + Zwroty)</div>
          <div style={{ fontSize: '32px', fontWeight: '800', color: '#F16A61', marginTop: '6px' }}>{f( final.endIKE + (final.endIKZE * 0.9) + final.accTaxReturn )} zł</div>
@@ -248,7 +326,7 @@ export const ProSummary = ({ final, totalDepositsIKE, totalDepositsIKZE }) => (
       </div>
     </div>
 
-    {/* --- SEKCJA DISCLAIMERS --- */}
+    {/* --- DISCLAIMERS --- */}
     <div style={{ marginTop: '60px', borderTop: '1px solid #e2e8f0', paddingTop: '20px', color: '#B2B2B2', fontSize: '11px', lineHeight: '1.6' }}>
        <p style={{ fontWeight: 'bold', marginBottom: '8px', color: '#B2B2B2' }}>Zastrzeżenia prawne i metodologiczne:</p>
        <ul style={{ listStyleType: 'disc', paddingLeft: '20px', margin: 0 }}>

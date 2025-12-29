@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { LIMITS } from '../data';
-import { ProToolbar, ProTable, ProSummary } from './ProComponents'; // Upewnij się, że importujesz z nowego pliku
+import { ProToolbar, ProTable, ProSummary } from './ProComponents';
 
 export default function ProDashboard({ 
   currentAge = 30, 
@@ -37,11 +37,17 @@ export default function ProDashboard({
         id: y,
         rok: y,
         wiek: ageInYear,
+        
+        // Limity
         rawLimitIKZE: limitStandard,
         rawLimitIKZE_Firma: limitCompany,
         limitIKE: limitData.IKE || 0,
+        
+        // Ustawienia użytkownika
         isCompany: defaultIsCompany,
         taxRate: defaultTaxRate,
+        isTaxCustom: false, // NOWOŚĆ: Flaga dla trybu ręcznego wpisywania podatku
+        
         wplataIKE: 0,
         wplataIKZE: 0,
         stopa: defaultStopa,
@@ -75,7 +81,7 @@ export default function ProDashboard({
       const taxReturn = (row.wplataIKZE || 0) * (row.taxRate || 0.12);
       const reinvestGrowth = (row.reinvestRate || 0) / 100;
       
-      // Zysk z reinwestycji pomniejszony o Belkę (19%) -> mnożnik 0.81
+      // Zysk z reinwestycji pomniejszony o Belkę (19%)
       if (row.isReinvesting) {
         accumulatedTaxReturn = accumulatedTaxReturn * (1 + reinvestGrowth * 0.81) + taxReturn;
       } else {
@@ -98,17 +104,26 @@ export default function ProDashboard({
     const defaultFinal = { totalPaid: 0, endIKE: 0, endIKZE: 0, accTaxReturn: 0 };
     const final = results.length > 0 ? results[results.length - 1] : defaultFinal;
     
-    // Sumy wpłat
     const totalDepositsIKE = results.reduce((acc, r) => acc + (r.wplataIKE || 0), 0);
     const totalDepositsIKZE = results.reduce((acc, r) => acc + (r.wplataIKZE || 0), 0);
 
     return { results, final, totalDepositsIKE, totalDepositsIKZE };
   }, [rows]);
 
+  // --- HANDLER (Rozbudowany o bool i custom flags) ---
   const updateRow = (id, field, value) => {
     setRows(prev => prev.map(r => {
       if (r.id !== id) return r;
-      if (field === 'isCompany' || field === 'isReinvesting') return { ...r, [field]: value };
+      
+      // Obsługa booleanów
+      if (field === 'isCompany' || field === 'isReinvesting' || field === 'isTaxCustom') {
+        // Jeśli odznaczamy firmę, resetujemy też tryb ręcznego podatku (bo etat ma tylko listę)
+        if (field === 'isCompany' && value === false) {
+           return { ...r, isCompany: false, isTaxCustom: false, taxRate: 0.12 };
+        }
+        return { ...r, [field]: value };
+      }
+      
       return { ...r, [field]: Number(value) };
     }));
   };
